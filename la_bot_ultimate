@@ -67,8 +67,13 @@ $("[class^='report_']").each(function(index, obj){setTimeout(function(){
 
     function farm_c()
     {
-        $("[class$='farm_icon_c']", obj)[0].click();
-        console.log("farmed with c");
+    	if (haul_HTML){
+            if (haul_HTML[haul_HTML.indexOf(".png") - 1] == "1")
+                full = true;{
+		$("[class$='farm_icon_c']", obj)[0].click();
+       		console.log("farmed with c");
+		}
+	  }
     };
 
     function farm_a_or_b()
