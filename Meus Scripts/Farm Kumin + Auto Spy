@@ -1,0 +1,187 @@
+// ==UserScript==
+// @name         Farm Kumin + Auto Spy (com Refresh Check Atualizado 2.2 - Ícone Fix + AntiTrack)
+// @namespace    http://tampermonkey.net/
+// @version      2.2
+// @description  Envia espião automaticamente para linhas com fundo vermelho e dentro da distância configurada
+// @author       Im Kumin + Mod
+// @match        https://*/*screen=am_farm*
+// @icon         https://cdn.myanimelist.net/s/common/userimages/99ae7797-2a6b-4ef6-b7da-c8d02dcd57ce_225w?s=69b58a93b7324d532b50383b191f5b8b
+// @grant        none
+// ==/UserScript==
+
+runAntiTrackScript();
+
+let spyExecuted = false;
+
+function createDistanceDropdown() {
+    const targetTh = document.querySelector('#plunder_list th:nth-child(8)');
+    if (!targetTh || document.querySelector('#kumin-distance-selector')) return;
+
+    const select = document.createElement('select');
+    select.id = 'kumin-distance-selector';
+    select.style.background = '#222';
+    select.style.color = '#fff';
+    select.style.border = '1px solid #555';
+    select.style.marginLeft = '5px';
+    select.style.borderRadius = '4px';
+
+    const currentDistance = parseInt(localStorage.getItem('kumin-max-distance')) || 40; // Utiliza este valor base caso não haja nenhum guardado em localstorage
+
+    for (let i = 5; i <= 100; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `${i}`;
+        if (i === currentDistance) option.selected = true;
+        select.appendChild(option);
+    }
+
+    select.addEventListener('change', () => {
+        localStorage.setItem('kumin-max-distance', select.value);
+    });
+
+    targetTh.appendChild(select);
+}
+
+$.ajax({
+    type: "GET",
+    url: 'https://gistcdn.githack.com/ImKumin/7aafcda5a7ef73f771a42195fa786a41/raw/KuminFarmLoaderT.js',
+    dataType: "script",
+    cache: false,
+    success: () => {
+        console.log('[SpyMod] Script original carregado.');
+
+        setInterval(() => {
+            const refreshingBox = Array.from(document.querySelectorAll('.autoHideBox.success'))
+                .find(el => el.textContent.includes("Refreshing"));
+
+            if (refreshingBox) {
+                if (!spyExecuted) {
+                    console.log('[SpyMod] Mensagem "Refreshing" detectada. Executando função de espião.');
+                    createDistanceDropdown();
+                    verificarESpionar();
+                    spyExecuted = true;
+                }
+            } else {
+                spyExecuted = false;
+            }
+        }, 1000);
+    }
+});
+
+function verificarESpionar() {
+    let currentSpyCount = parseInt(document.querySelector('#units_home .unit-item-spy')?.getAttribute('data-unit-count'), 10) || 0;
+    if (currentSpyCount <= 0) {
+        console.log('[Kumin+] Sem espiões disponíveis.');
+        return;
+    }
+
+    const maxDistance = parseFloat(localStorage.getItem('kumin-max-distance')) || 40; // Utiliza este valor base caso não haja nenhum guardado em localstorage
+    const rows = document.querySelectorAll('#plunder_list tr');
+    let currentRowIndex = 0;
+
+    function processNextRow() {
+        if (currentRowIndex >= rows.length) {
+            console.log('[Kumin+] Todas as linhas foram processadas.');
+            return;
+        }
+
+        const row = rows[currentRowIndex];
+        const tds = row.querySelectorAll('td');
+
+        const redTd = Array.from(tds).find(td => {
+            const bg = window.getComputedStyle(td).backgroundColor;
+            return bg === "rgb(240, 100, 100)";
+        });
+
+        if (!redTd) {
+            console.log(`[Kumin+] Linha ${currentRowIndex + 1}: nenhum <td> com fundo vermelho. Ignorada.`);
+            currentRowIndex++;
+            processNextRow();
+            return;
+        }
+
+        const distanceText = tds[7]?.innerText?.trim();
+        const distance = parseFloat(distanceText?.replace(",", "."));
+
+        if (isNaN(distance) || distance > maxDistance) {
+            console.log(`[Kumin+] Linha ${currentRowIndex + 1}: distância inválida ou fora do limite (${distance}). Ignorada.`);
+            currentRowIndex++;
+            processNextRow();
+            return;
+        }
+
+        console.log(`[Kumin+] Linha ${currentRowIndex + 1}: Condições OK. Distância ${distance}, espiões disponíveis: ${currentSpyCount}.`);
+
+        const rallyIconLink = row.querySelector('a[href*="screen=place"]');
+        if (!rallyIconLink) {
+            console.warn(`[Kumin+] Linha ${currentRowIndex + 1}: ícone da Praça não encontrado.`);
+            currentRowIndex++;
+            processNextRow();
+            return;
+        }
+
+        setTimeout(() => {
+            rallyIconLink.click();
+            setTimeout(() => {
+                const spyInput = document.querySelector('input[name="spy"]');
+                if (spyInput) {
+                    spyInput.value = '1';
+
+                    const attackBtn = document.querySelector('input[type="submit"][value="Atacar"], input[type="submit"][value="Attack"]');
+                    if (attackBtn) {
+                        setTimeout(() => {
+                            attackBtn.click();
+                            setTimeout(() => {
+                                const confirmBtn = document.querySelector('input[type="submit"][value="Enviar ataque"], input[type="submit"][value="Send attack"]');
+                                if (confirmBtn) {
+                                    confirmBtn.click();
+                                    currentSpyCount--;
+                                } else {
+                                    console.warn('[Kumin+] Botão "Enviar ataque" não encontrado.');
+                                }
+                                currentRowIndex++;
+                                processNextRow();
+                            }, 1200);
+                        }, 600);
+                    } else {
+                        console.warn('[Kumin+] Botão "Atacar" não encontrado.');
+                        currentRowIndex++;
+                        processNextRow();
+                    }
+                } else {
+                    console.warn('[Kumin+] Campo de espião não encontrado.');
+                    currentRowIndex++;
+                    processNextRow();
+                }
+            }, 1000);
+        }, 500);
+    }
+
+    processNextRow();
+}
+
+function runAntiTrackScript() {
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = function () {
+        console.log('[AntiTrack] pushState bloqueado');
+        return;
+    };
+
+    history.replaceState = function () {
+        console.log('[AntiTrack] replaceState bloqueado');
+        return;
+    };
+
+    Object.defineProperty(document, 'visibilityState', {
+        get() {
+            return 'visible';
+        }
+    });
+
+    document.addEventListener('visibilitychange', function (e) {
+        e.stopImmediatePropagation();
+        console.log('[AntiTrack] visibilitychange bloqueado');
+    }, true);
+}
