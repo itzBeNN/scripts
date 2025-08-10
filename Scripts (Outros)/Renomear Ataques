@@ -1,0 +1,14 @@
+// ==UserScript==
+// @name         Renomear Ataques Noite (Auto Mode)
+// @author       Various
+// @match        https://*/game.php?*mode=incomings*
+// @version        1.0
+// ==/UserScript==
+setTimeout(function () { location.reload(1); }, 20000);
+{
+    $('input#select_all.selectAll').click();
+    setTimeout(function(){
+        var label = document.getElementsByName("label");
+        label[0].click();
+    }, 20000);
+}
