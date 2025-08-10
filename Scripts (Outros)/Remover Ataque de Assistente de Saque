@@ -1,0 +1,65 @@
+// ==UserScript==
+// @name         Remover Ataque de Assistente de Saque
+// @version      1.1
+// @description  Remove todas as entradas "Ataque de Saque" da página.
+// @author       vcsousa
+// @include      **&screen=overview*
+// ==/UserScript==
+
+
+(function() {
+    'use strict';
+
+    let visible = false;
+
+    function toggleAtaqueDeSaque(show) {
+        document.querySelectorAll('.command-row').forEach(row => {
+            const commandHint = row.querySelector('[data-icon-hint]');
+            if (commandHint) {
+                const hintText = commandHint.getAttribute('data-icon-hint');
+                if (hintText === 'Ataque de Saque' || hintText === 'Ataque de Saque (em retorno)') {
+                    row.style.display = show ? '' : 'none';
+                }
+            }
+        });
+    }
+
+    function addRestoreButton() {
+        const header = document.querySelector('#show_outgoing_units h4.head');
+        if (!header) return;
+
+        const button = document.createElement('button');
+        button.innerHTML = '👁️ Mostrar';
+        button.style.marginLeft = '10px';
+        button.style.padding = '4px 4px';
+        button.style.backgroundColor = 'black';
+        button.style.color = 'white';
+        button.style.border = '2px solid #c19a6b';
+        button.style.borderRadius = '20px';
+        button.style.cursor = 'pointer';
+        button.style.fontSize = '10px';
+        button.style.display = 'absolute';
+        button.style.alignItems = 'center';
+        button.style.gap = '5px';
+
+        button.addEventListener('click', () => {
+            visible = !visible;
+            toggleAtaqueDeSaque(visible);
+            button.innerHTML = visible ? '🙈 Esconder' : '👁️ Mostrar';
+        });
+
+        header.appendChild(button);
+    }
+
+    // Executar ao carregar a página
+    toggleAtaqueDeSaque(false);
+    addRestoreButton();
+
+    // Observar mudanças na página para esconder novos elementos carregados dinamicamente
+    const observer = new MutationObserver(() => {
+        if (!visible) {
+            toggleAtaqueDeSaque(false);
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
