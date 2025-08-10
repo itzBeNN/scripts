@@ -1,0 +1,140 @@
+// ==UserScript==
+// @name         Calcular Leves - Players
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Calcula Leves e insere a info diretamente na Div dos Recursos após o Ferro/Iron no relatório, recolhendo as coordenadas corretas de destino e preenchendo o campo na Praça de Reuniões ao redirecionar para lá.
+// @author       - BeNN
+// @include      *tribalwars.com.pt/*&screen=report&mode*
+// @include      *tribalwars.com.pt/*&screen=place*
+// @grant        none
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    // Função para obter o valor numérico de um elemento (remover separadores de milhares)
+    function parseResourceValue(resourceText) {
+        if (!resourceText || resourceText.trim() === '') {
+            console.error('Texto de recurso vazio ou inválido:', resourceText);
+            return 0;
+        }
+        const parsedValue = parseInt(resourceText.replace(/\./g, '').trim());
+        if (isNaN(parsedValue)) {
+            console.error('Falha ao parsear o valor de recurso:', resourceText);
+            return 0;
+        }
+        return parsedValue;
+    }
+
+    // Função para buscar as coordenadas de destino (última ocorrência no link relevante)
+    function extractCoordinatesFromDestination() {
+        const destinationLinks = document.querySelectorAll('a[href*="screen=info_village"]'); // Seleciona todos os links com "screen=info_village"
+        if (destinationLinks.length > 1) {
+            const destinationLink = destinationLinks[destinationLinks.length - 1]; // Pega o último link (destino)
+            const match = destinationLink.textContent.match(/\((\d+\|\d+)\)/); // Busca padrão (XXX|YYY)
+            if (match) {
+                return match[1]; // Retorna apenas XXX|YYY
+            }
+        }
+        console.error('Coordenadas de destino não encontradas no último link relevante');
+        return '';
+    }
+
+    // Função para preencher automaticamente o campo de coordenadas na Praça de Reuniões
+    function fillCoordinatesInPlacePage(coordinates) {
+        const inputField = document.querySelector('input[name="input"]'); // Seleciona o campo de coordenadas
+        if (inputField && coordinates) {
+            inputField.value = coordinates; // Preenche o campo com as coordenadas
+            console.log(`Coordenadas preenchidas automaticamente: ${coordinates}`);
+        } else {
+            console.error('Não foi possível preencher as coordenadas na Praça de Reuniões');
+        }
+    }
+
+    // Função para inserir as Leves diretamente após o Ferro/Iron como link clicável
+    function insertClickableLeves(message, coordinates) {
+        // Criar o elemento clicável
+        const levesLink = document.createElement('a');
+        levesLink.style.marginLeft = '10px'; // Pequeno espaçamento após o "Ferro/Iron"
+        levesLink.style.color = '#fff'; // Texto branco para dark mode
+        levesLink.style.backgroundColor = '#333'; // Fundo escuro para combinar com o tema
+        levesLink.style.padding = '3px 6px'; // Espaçamento interno para visibilidade
+        levesLink.style.borderRadius = '4px'; // Bordas arredondadas
+        levesLink.style.fontSize = '12px'; // Tamanho de fonte ajustado
+        levesLink.style.textDecoration = 'none'; // Remover sublinhado no link
+        levesLink.textContent = `🐴 ${message}`;
+
+        // Criar o URL de redirecionamento com as Leves e coordenadas
+        const villageId = new URLSearchParams(window.location.search).get('village'); // Extrair ID da aldeia
+        if (villageId && coordinates) {
+            levesLink.href = `/game.php?village=${villageId}&screen=place&light=${message}`; // URL para a página de envio com o número de Leves
+            levesLink.onclick = () => {
+                localStorage.setItem('destinationCoordinates', coordinates); // Salva as coordenadas para serem usadas na Praça de Reuniões
+            };
+        } else {
+            console.error('ID da aldeia ou coordenadas não encontrados. Redirecionamento inválido.');
+            levesLink.href = '#'; // Link vazio se algo estiver faltando
+        }
+
+        // Selecionar o elemento "Ferro/Iron" e inserir o link após ele
+        const ironElement = document.querySelector('#attack_spy_resources td span.icon.header.iron');
+        if (ironElement && ironElement.parentElement) {
+            ironElement.parentElement.appendChild(levesLink); // Adicionar o link diretamente após o "Ferro/Iron"
+        } else {
+            console.error('Elemento "Ferro/Iron" não encontrado. Não foi possível inserir o link de Leves.');
+        }
+    }
+
+    // Detecção automática na página da Praça de Reuniões
+    if (window.location.href.includes('screen=place')) {
+        const savedCoordinates = localStorage.getItem('destinationCoordinates'); // Recupera as coordenadas salvas
+        fillCoordinatesInPlacePage(savedCoordinates); // Preenche o campo de coordenadas
+        localStorage.removeItem('destinationCoordinates'); // Remove as coordenadas após o uso
+    } else {
+        // Selecionar a tabela de recursos encontrados
+        const resourceTable = document.querySelector('#attack_spy_resources');
+        if (resourceTable) {
+            try {
+                console.log('Tabela de Recursos encontrada!', resourceTable);
+
+                // Inicializar variáveis
+                let wood = 0, stone = 0, iron = 0;
+
+                // Buscar recursos dentro dos spans dentro da célula
+                const resourceCells = resourceTable.querySelectorAll('td span.nowrap');
+                resourceCells.forEach(cell => {
+                    const cellText = cell.textContent.trim();
+                    console.log('Texto do recurso:', cellText);
+                    if (cell.querySelector('.icon.header.wood')) {
+                        wood = parseResourceValue(cellText);
+                    } else if (cell.querySelector('.icon.header.stone')) {
+                        stone = parseResourceValue(cellText);
+                    } else if (cell.querySelector('.icon.header.iron')) {
+                        iron = parseResourceValue(cellText);
+                    }
+                });
+
+                console.log('Recursos encontrados:', { madeira: wood, argila: stone, ferro: iron });
+
+                // Somar os valores dos recursos
+                const totalResources = wood + stone + iron;
+
+                console.log("Total de Recursos:", totalResources);
+
+                // Extrair coordenadas do link de destino
+                const coordinates = extractCoordinatesFromDestination();
+                console.log("Coordenadas extraídas:", coordinates);
+
+                // Calcular as Leves necessárias
+                const levesRequired = Math.ceil(totalResources / 80);
+                insertClickableLeves(`${levesRequired}`, coordinates);
+            } catch (error) {
+                console.error('Erro ao processar os recursos ou extrair coordenadas:', error);
+                insertClickableLeves('Erro ao calcular', '');
+            }
+        } else {
+            console.error('Tabela de Recursos (#attack_spy_resources) não encontrada!');
+            insertClickableLeves('Tabela não encontrada', '');
+        }
+    }
+})();
