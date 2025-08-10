@@ -1,0 +1,43 @@
+// ==UserScript==
+// @name         Armazenar Pacotes c/Refresh
+// @author       - BeNN
+// @match        https://*/*screen=snob*
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    // Delay aleatório entre 5 e 10 segundos para clicar no botão
+    const delayCliqueMin = 5000;
+    const delayCliqueMax = 10000;
+
+    // Delay aleatório entre 90 e 150 segundos para o refresh
+    const delayRefreshMin = 90000;
+    const delayRefreshMax = 150000;
+
+    // Função utilitária para gerar número aleatório entre dois valores
+    function getRandomDelay(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    const botao = document.querySelector('input.btn[value="Armazenar"]');
+
+    if (botao) {
+        // Se o botão existe, programa clique com delay de 5-10s
+        const delay = getRandomDelay(delayCliqueMin, delayCliqueMax);
+        console.log(`[Armazenar Script] Botão encontrado. Clicando em ${Math.floor(delay / 1000)}s...`);
+
+        setTimeout(() => {
+            console.log('[Armazenar Script] Clicando agora!');
+            botao.click(); // Isso submete o formulário e recarrega a página
+        }, delay);
+    } else {
+        // Se o botão não existe, programa refresh entre 90–150s
+        const delay = getRandomDelay(delayRefreshMin, delayRefreshMax);
+        console.log(`[Armazenar Script] Botão não encontrado. Recarregando página em ${Math.floor(delay / 1000)}s...`);
+
+        setTimeout(() => {
+            location.reload();
+        }, delay);
+    }
+})();
