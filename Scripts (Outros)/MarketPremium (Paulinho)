@@ -1,0 +1,854 @@
+// ==UserScript==
+// @name         marketPremium
+// @include      **exchange*
+// @version      1.1
+// @author       paulinho CRACKED BY gandanimal
+// ==/UserScript==
+
+console.time()
+showDialogMarket();
+function showDialogMarket() {
+  inputStorage = function (_0x5c0af0, _0x119bda) {
+    localStorage.setItem(_0x5c0af0, _0x119bda)
+  }
+  outputStorage = function (_0x2dd61e) {
+    return localStorage.getItem(_0x2dd61e)
+  }
+  function _0x1bb06e() {
+    setTimeout(() => {
+      location.reload(true)
+    }, 1500)
+  }
+  function _0x5635ab() {
+    timeRefreshPage = 300000
+    setTimeout(() => {
+      location.reload(true)
+    }, Math.floor(Math.random() * timeRefreshPage) + 10000)
+    console.log('Refreshing in ' + timeRefreshPage / 1000 + ' seconds')
+  }
+  const _0x153442 = 'ActiveMarket ' + game_data.village.id
+  let _0x42b430 = outputStorage(_0x153442) == 1
+  function _0x1a090d() {
+    _0x42b430 = !_0x42b430
+    inputStorage(_0x153442, _0x42b430 ? 1 : 0)
+    start.value = _0x42b430 ? 'Script Ativado' : 'Script Desativado'
+    start.classList = _0x42b430
+      ? 'btn evt-confirm-btn btn-confirm-yes'
+      : 'btn evt-confirm-btn btn-confirm-no'
+    _0x1bb06e()
+  }
+  function _0x50b330() {
+    if (outputStorage('OptionMarket ' + game_data.village.id) == 0) {
+      inputStorage('OptionMarket ' + game_data.village.id, 1)
+      option.value = 'Compra: Modo UsuÃ\xA1rio'
+      option.classList = 'btn evt-confirm-btn btn-confirm-yes'
+      _0x1bb06e()
+    } else {
+      if (outputStorage('OptionMarket ' + game_data.village.id) == 1) {
+        const _0x439f25 = document.createElement('htmlConfirmChangedMode'),
+          _0x310281 = document.querySelector('#ds_body')
+        _0x310281.append(_0x439f25)
+        _0x439f25.innerHTML =
+          '\n            <div id="fader" style="z-index: 14999;">\n            <div class="confirmation-box" id="premium_exchange" role="dialog" aria-labelledby="confirmation-msg">\n                <div class="confirmation-box-content-pane" style="max-height: 869px;">\n                    <div class="confirmation-box-content" style="overflow: auto; height: auto;">\n                        <div id="confirmation-msg" class="confirmation-msg">\n                            <div style="text-align: center">\n                                <h3 style="margin-top: 0;font-size: 12px;font-family: inherit;color: red;font-weight: 800;letter-spacing: 0.5px;">Deseja ativar o Modo Script? Os gastos de pontos premium nesse modo sÃ\xA3o de forma acelerada.\n                                Ele vai comprar 100% do seu armazÃ\xA9m sempre que possÃ\xADvel, e isso pode eliminar seus pontos premium em poucos segundos a depender do tempo de mundo.</h3>\n                                <table class="vis" style="width: 100%">\n                                    <tbody>\n                                    </tbody>\n                                </table></div>\n                                <div class="confirmation-buttons">\n                                    <button class="btn evt-confirm-btn btn-confirm-yes" aria-label\'confirmar\'="">Confirmar</button>\n                                    <button class="btn evt-cancel-btn btn-confirm-no" aria-label\'cancel\'="">Cancelar</button>\n                                </div>\n                            </div>\n                            <div>\n                            <p> Na dÃºvida, entre em contato para evitar gastos exagerados de pontos premium! </p>\n                            <a href="https://api.whatsapp.com/send?phone=5575991790412" target="_blank>">Suporte WhatsApp</a>\n                            </div>\n                        </div>\n                    </div>\n                </div>\n            </div>'
+        const _0x291577 = document.querySelector(
+            '.confirmation-buttons button'
+          ),
+          _0x31b8a7 = document.querySelector(
+            '.btn.evt-cancel-btn.btn-confirm-no'
+          )
+        _0x291577.addEventListener('click', () => {
+          inputStorage('OptionMarket ' + game_data.village.id, 2)
+          option.value = 'Compra: Modo Script'
+          option.classList = 'btn evt-confirm-btn btn-confirm-yes'
+          document.querySelector('htmlconfirmchangedmode').style.display =
+            'none'
+          _0x1bb06e()
+        })
+        _0x31b8a7.addEventListener('click', () => {
+          ;(document.querySelector('htmlconfirmchangedmode').style.display =
+            'none'),
+            _0x1bb06e()
+        })
+      } else {
+        inputStorage('OptionMarket ' + game_data.village.id, 0)
+        option.value = 'Compra desativada'
+        option.classList = 'btn evt-confirm-btn btn-confirm-no'
+        _0x1bb06e()
+      }
+    }
+  }
+  function _0x1507b8() {
+    if (outputStorage('SellMarket ' + game_data.village.id) == 1) {
+      inputStorage('SellMarket ' + game_data.village.id, 0)
+      vender.value = 'Vendas Desativada'
+      vender.classList = 'btn evt-confirm-btn btn-confirm-no'
+      _0x1bb06e()
+    } else {
+      inputStorage('SellMarket ' + game_data.village.id, 1)
+      vender.value = 'Vendas Ativada'
+      vender.classList = 'btn evt-confirm-btn btn-confirm-yes'
+      _0x1bb06e()
+    }
+  }
+  function _0x30abe5() {
+    resources = ['wood', 'stone', 'iron']
+    stock = []
+    capacity = []
+    rate = []
+    rateResources = []
+    rateResourcersForBuyUser = []
+    rateForBuy = []
+    rateForBuyId = []
+    for (let _0x3889b4 = 0; _0x3889b4 < resources.length; _0x3889b4++) {
+      let _0x35f93c = parseInt(
+          document.querySelector(
+            '#premium_exchange_stock_' + resources[_0x3889b4]
+          ).textContent
+        ),
+        _0x2b0967 = parseInt(
+          document.querySelector(
+            '#premium_exchange_capacity_' + resources[_0x3889b4]
+          ).textContent
+        ),
+        _0x38ef52 = parseInt(
+          document
+            .querySelector('#premium_exchange_rate_' + resources[_0x3889b4])
+            .querySelectorAll('.premium-exchange-sep')[0].textContent
+        ),
+        _0x38e62c = parseInt(
+          document
+            .querySelector('#premium_exchange_rate_' + resources[_0x3889b4])
+            .querySelectorAll('.premium-exchange-sep')[0].textContent * 0.9
+        )
+      stock[resources[_0x3889b4]] = _0x35f93c
+      capacity[resources[_0x3889b4]] = _0x2b0967
+      rate[resources[_0x3889b4]] = _0x38ef52
+      rateResources[resources[_0x3889b4]] = _0x38e62c
+      for (j = 0; j < 3; j++) {
+        resourcesVillage = [rate.wood, rate.stone, rate.iron]
+        inputsRateBuyUser = document
+          .querySelector('.buy')
+          .querySelectorAll('input')
+        idResources = inputsRateBuyUser[j].id.replace('buy', '')
+        valueResources = parseInt(inputsRateBuyUser[j].value)
+        if (
+          valueResources <= [resourcesVillage[j]] &&
+          stock[idResources] > 200
+        ) {
+          rateResourcersForBuyUser[resources[j]] = [valueResources, idResources]
+        }
+        let _0x5ccf2e = Object.values(rateResourcersForBuyUser)
+        for (let _0x201151 = 0; _0x201151 < _0x5ccf2e.length; _0x201151++) {
+          let _0x298c1b = _0x5ccf2e[_0x201151][0],
+            _0x169ae1 = _0x5ccf2e[_0x201151][1]
+          rateForBuy[_0x201151] = _0x298c1b
+          rateForBuyId[_0x169ae1] = _0x169ae1
+        }
+      }
+    }
+    switch (Math.max(stock.wood, stock.stone, stock.iron)) {
+      case stock.wood:
+        ;(highStock = [stock.wood, 'wood']),
+          (rateResourcesBuy = rateResources.wood),
+          (rateResourcesBuyUser = rate.wood)
+        break
+      case stock.stone:
+        ;(highStock = [stock.stone, 'stone']),
+          (rateResourcesBuy = rateResources.stone),
+          (rateResourcesBuyUser = rate.stone)
+        break
+      case stock.iron:
+        ;(highStock = [stock.iron, 'iron']),
+          (rateResourcesBuy = rateResources.iron),
+          (rateResourcesBuyUser = rate.iron)
+        break
+    }
+  }
+  async function _0x11bb54() {
+    rateBuyWoodUser = parseInt(document.querySelector('#buywood').value)
+    rateBuyStoneUser = parseInt(document.querySelector('#buystone').value)
+    rateBuyIronUser = parseInt(document.querySelector('#buyiron').value)
+    rateSellWood = parseInt(document.querySelector('#sellwood').value)
+    rateSellStone = parseInt(document.querySelector('#sellstone').value)
+    rateSellIron = parseInt(document.querySelector('#selliron').value)
+    reserveWood = parseInt(document.querySelector('#reserveWood').value) || 0
+    reserveStone = parseInt(document.querySelector('#reserveStone').value) || 0
+    reserveIron = parseInt(document.querySelector('#reserveIron').value) || 0
+    maxSell = document.querySelector('#maxSell').value
+    maxBuyStorage = parseInt(document.querySelector('#maxstorage').value)
+    limiteStorageBuy = parseInt(document.querySelector('#limiteStorage').value)
+    woodArriving =
+      parseInt(
+        document
+          .querySelector(
+            '#market_status_bar > table:nth-child(2) > tbody > tr > th:nth-child(1) span.icon.header.wood'
+          )
+          ?.parentElement.innerText.replace('.', '')
+      ) || 0
+    stoneArriving =
+      parseInt(
+        document
+          .querySelector(
+            '#market_status_bar > table:nth-child(2) > tbody > tr > th:nth-child(1) span.icon.header.stone'
+          )
+          ?.parentElement.innerText.replace('.', '')
+      ) || 0
+    ironArriving =
+      parseInt(
+        document
+          .querySelector(
+            '#market_status_bar > table:nth-child(2) > tbody > tr > th:nth-child(1) span.icon.header.iron'
+          )
+          ?.parentElement.innerText.replace('.', '')
+      ) || 0
+    ppsArriving =
+      parseInt(
+        document
+          .querySelector(
+            '#market_status_bar > table:nth-child(2) > tbody > tr > th:nth-child(1) span.icon.header.premium'
+          )
+          ?.nextSibling.textContent.replace('.', '')
+      ) || 0
+    woodOuting =
+      parseInt(
+        document
+          .querySelector(
+            '#market_status_bar > table:nth-child(2) > tbody > tr > th:nth-child(2) span.icon.header.wood'
+          )
+          ?.parentElement.innerText.replace('.', '')
+      ) || 0
+    stoneOuting =
+      parseInt(
+        document
+          .querySelector(
+            '#market_status_bar > table:nth-child(2) > tbody > tr > th:nth-child(2) span.icon.header.stone'
+          )
+          ?.parentElement.innerText.replace('.', '')
+      ) || 0
+    ironOuting =
+      parseInt(
+        document
+          .querySelector(
+            '#market_status_bar > table:nth-child(2) > tbody > tr > th:nth-child(2) span.icon.header.iron'
+          )
+          ?.parentElement.innerText.replace('.', '')
+      ) || 0
+    ppsOuting =
+      parseInt(
+        document
+          .querySelector(
+            '#market_status_bar > table:nth-child(2) > tbody > tr > th:nth-child(2) span.icon.header.premium'
+          )
+          ?.nextSibling.textContent.replace('.', '')
+      ) || 0
+  }
+  async function _0xa04a7b() {
+    console.log('Check config sell')
+    merchants = parseInt(market_merchant_max_transport.textContent)
+    resourcesForSell = []
+    rateForSell = []
+    rateSellId = []
+    resourcesInVillage = [woodVillage, stoneVillage, ironVillage]
+    reserveResources = [reserveWood, reserveStone, reserveIron]
+    for (let _0x2d9f05 = 0; _0x2d9f05 < 3; _0x2d9f05++) {
+      inputsSell = document.querySelector('.sell').querySelectorAll('input')
+      valueInputsSell = parseInt(inputsSell[_0x2d9f05].value)
+      nameInputsSell = inputsSell[_0x2d9f05].id.replace('sell', '')
+      if (
+        valueInputsSell >= [resourcesVillage[_0x2d9f05]] &&
+        resourcesInVillage[_0x2d9f05] - reserveResources[_0x2d9f05] > 500
+      ) {
+        resourcesForSell[resources[_0x2d9f05]] = [
+          valueInputsSell,
+          nameInputsSell,
+          resourcesInVillage[_0x2d9f05],
+        ]
+      }
+    }
+    const _0x43ed36 = Object.values(resourcesForSell)
+    for (let _0x4ca7b2 = 0; _0x4ca7b2 < _0x43ed36.length; _0x4ca7b2++) {
+      ;(rateSell = _0x43ed36[_0x4ca7b2][0]),
+        (nameResourceSell = _0x43ed36[_0x4ca7b2][1]),
+        (rateForSell[_0x4ca7b2] = rateSell),
+        (rateSellId[nameResourceSell] = nameResourceSell)
+    }
+  }
+  function _0x21f506() {
+    ;(woodVillage = parseInt(wood.textContent)),
+      (stoneVillage = parseInt(stone.textContent)),
+      (ironVillage = parseInt(iron.textContent)),
+      (storageVillage = parseInt(game_data.village.storage_max))
+  }
+  _0x21f506()
+  function _0x1a4c8e() {
+    buyStockLargerStorage =
+      parseInt(storageVillage / rateResourcesBuy) * rateResourcesBuy
+    buyStockSmallerStorage =
+      parseInt(highStock[0] / rateResourcesBuy) * rateResourcesBuy
+  }
+  function _0x5ae014() {
+    console.log('Buying mode Script')
+    inputBuyModeUser = document
+      .querySelector('#premium_exchange_buy_' + highStock[1])
+      .querySelectorAll('.premium-exchange-input')[0]
+    if (highStock[0] >= storageVillage && buyStockLargerStorage > 0) {
+      ;(inputBuyModeUser.value = buyStockLargerStorage), _0x42d5c4()
+    } else {
+      if (buyStockSmallerStorage > 0) {
+        inputBuyModeUser.value = buyStockSmallerStorage
+        _0x42d5c4()
+      }
+    }
+  }
+  function _0x1f4e87() {
+    const _0x2ae4b3 = woodArriving + woodVillage
+    const _0x5c7062 = stoneArriving + stoneVillage
+    const _0x413a76 = ironArriving + ironVillage
+    const _0x554c34 = limiteStorageBuy
+    rateForBuy.length > 0
+      ? (highRateUser = rateForBuy.reduce(function (_0x412e71, _0x2cf7eb) {
+          return _0x412e71 > _0x2cf7eb ? _0x2cf7eb : _0x412e71
+        }))
+      : (highRateUser = 0)
+    if (
+      highRateUser == rateBuyWoodUser &&
+      _0x2ae4b3 < _0x554c34 &&
+      rateForBuyId.wood == 'wood'
+    ) {
+      resourcesBuy = 'wood'
+      amountBuyUser = _0x554c34 - _0x2ae4b3
+      stockResources = stock.wood
+      rr = rate.wood
+      _0x47b30d()
+    } else {
+      if (
+        highRateUser == rateBuyStoneUser &&
+        _0x5c7062 < _0x554c34 &&
+        rateForBuyId.stone == 'stone'
+      ) {
+        resourcesBuy = 'stone'
+        amountBuyUser = _0x554c34 - _0x5c7062
+        stockResources = stock.stone
+        rr = rate.stone
+        _0x47b30d()
+      } else {
+        if (
+          highRateUser == rateBuyIronUser &&
+          _0x413a76 < _0x554c34 &&
+          rateForBuyId.iron == 'iron'
+        ) {
+          resourcesBuy = 'iron'
+          amountBuyUser = _0x554c34 - _0x413a76
+          stockResources = stock.iron
+          rr = rate.iron
+          _0x47b30d()
+        } else {
+          if (
+            highRateUser !== rateBuyWoodUser &&
+            rateBuyWoodUser <= rate.wood &&
+            _0x2ae4b3 < _0x554c34 &&
+            rateForBuyId.wood == 'wood'
+          ) {
+            resourcesBuy = 'wood'
+            amountBuyUser = _0x554c34 - _0x2ae4b3
+            stockResources = stock.wood
+            rr = rate.wood
+            _0x47b30d()
+          } else {
+            if (
+              highRateUser !== rateBuyStoneUser &&
+              rateBuyStoneUser <= rate.stone &&
+              _0x5c7062 < _0x554c34 &&
+              rateForBuyId.stone == 'stone'
+            ) {
+              resourcesBuy = 'stone'
+              amountBuyUser = _0x554c34 - _0x5c7062
+              stockResources = stock.stone
+              rr = rate.stone
+              _0x47b30d()
+            } else {
+              if (
+                highRateUser !== rateBuyIronUser &&
+                rateBuyIronUser <= rate.iron &&
+                _0x413a76 < _0x554c34 &&
+                rateForBuyId.iron == 'iron'
+              ) {
+                resourcesBuy = 'iron'
+                amountBuyUser = _0x554c34 - _0x413a76
+                stockResources = stock.iron
+                rr = rate.iron
+                _0x47b30d()
+              }
+            }
+          }
+        }
+      }
+    }
+    function _0x47b30d() {
+      amountBuyUser > stockResources
+        ? (amountBuyUser = parseInt(stockResources / rr) * rr - rr)
+        : amountBuyUser
+      const _0x20dbf6 = document
+        .querySelector('#premium_exchange_buy_' + resourcesBuy)
+        .querySelectorAll('.premium-exchange-input')[0]
+      amountBuyUser > maxBuyStorage
+        ? (amountBuyUser = maxBuyStorage)
+        : amountBuyUser
+      _0x20dbf6.value = parseInt(amountBuyUser)
+      _0x42d5c4()
+    }
+  }
+  function _0x2a84e7() {
+    const _0xd66888 = capacity.wood - stock.wood,
+      _0x27d6e5 = capacity.stone - stock.stone
+    const _0x2e7200 = capacity.iron - stock.iron
+    if (rateForSell.length > 0) {
+      minRateSell = rateForSell.reduce(function (_0xc63249, _0x46b7d2) {
+        return _0xc63249 > _0x46b7d2 ? _0x46b7d2 : _0xc63249
+      })
+    } else {
+      minRateSell = 0
+    }
+    if (
+      minRateSell == rateSellWood &&
+      rateSellId.wood == 'wood' &&
+      merchants < woodVillage &&
+      merchants >= 1000 &&
+      rate.wood <= 900 &&
+      woodVillage > 600 &&
+      maxSell < _0xd66888
+    ) {
+      console.log('Alta Madeira baixo mercadores'),
+        (resourcesSell = 'wood'),
+        (amountSellUser = merchants - rate.wood * 1 - reserveWood),
+        _0x5bad9d()
+    } else {
+      if (
+        minRateSell == rateSellStone &&
+        rateSellId.stone == 'stone' &&
+        merchants < stoneVillage &&
+        merchants >= 1000 &&
+        rate.stone <= 900 &&
+        stoneVillage > 600 &&
+        maxSell < _0x27d6e5
+      ) {
+        console.log('Alta Argila baixo mercadores')
+        resourcesSell = 'stone'
+        amountSellUser = merchants - rate.stone * 1 - reserveStone
+        _0x5bad9d()
+      } else {
+        if (
+          minRateSell == rateSellIron &&
+          rateSellId.iron == 'iron' &&
+          merchants < ironVillage &&
+          merchants >= 1000 &&
+          rate.iron <= 900 &&
+          ironVillage > 600 &&
+          maxSell < _0x2e7200
+        ) {
+          console.log('Alto Ferro baixo mercadores'),
+            (resourcesSell = 'iron'),
+            (amountSellUser = merchants - rate.iron * 1 - reserveIron),
+            _0x5bad9d()
+        } else {
+          if (
+            minRateSell == rateSellWood &&
+            rateSellId.wood == 'wood' &&
+            merchants >= woodVillage &&
+            merchants >= 1000 &&
+            woodVillage < _0xd66888 &&
+            woodVillage - reserveWood * 1 >= rate.wood * 1.05
+          ) {
+            console.log('Madeira muitos mercadores'),
+              (resourcesSell = 'wood'),
+              (amountSellUser = woodVillage - reserveWood - rate.wood * 1.03),
+              _0x5bad9d()
+          } else {
+            if (
+              minRateSell == rateSellStone &&
+              rateSellId.stone == 'stone' &&
+              merchants >= stoneVillage &&
+              merchants >= 1000 &&
+              stoneVillage < _0x27d6e5 &&
+              stoneVillage - reserveStone * 1 >= rate.stone * 1.05
+            ) {
+              console.log('Argila muitos mercadores'),
+                (resourcesSell = 'stone'),
+                (amountSellUser =
+                  stoneVillage - reserveStone - rate.stone * 1.03),
+                _0x5bad9d()
+            } else {
+              if (
+                minRateSell == rateSellIron &&
+                rateSellId.iron == 'iron' &&
+                merchants >= ironVillage &&
+                merchants >= 1000 &&
+                ironVillage < _0x2e7200 &&
+                ironVillage - reserveIron * 1 >= rate.iron * 1.05
+              ) {
+                console.log('Ferro muitos mercadores')
+                resourcesSell = 'iron'
+                amountSellUser = ironVillage - reserveIron - rate.iron * 1.03
+                _0x5bad9d()
+              } else {
+                if (
+                  woodVillage > _0xd66888 &&
+                  merchants >= _0xd66888 &&
+                  _0xd66888 > 0 &&
+                  minRateSell > 0 &&
+                  rateSellId.wood == 'wood'
+                ) {
+                  ;(resourcesSell = 'wood'),
+                    (amountSellUser = _0xd66888),
+                    console.log('Completando estoque de madeira'),
+                    _0x5bad9d()
+                } else {
+                  if (
+                    stoneVillage > _0x27d6e5 &&
+                    merchants >= _0x27d6e5 &&
+                    _0x27d6e5 > 0 &&
+                    minRateSell > 0 &&
+                    rateSellId.stone == 'stone'
+                  ) {
+                    ;(resourcesSell = 'stone'),
+                      (amountSellUser = _0x27d6e5),
+                      console.log('Completando estoque de argila'),
+                      _0x5bad9d()
+                  } else {
+                    if (
+                      ironVillage > _0x2e7200 &&
+                      merchants >= _0x2e7200 &&
+                      _0x2e7200 > 0 &&
+                      minRateSell > 0 &&
+                      rateSellId.iron == 'iron'
+                    ) {
+                      resourcesSell = 'iron'
+                      amountSellUser = _0x2e7200
+                      console.log('Completando estoque de ferro')
+                      _0x5bad9d()
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    function _0x5bad9d() {
+      if (amountSellUser > 0) {
+        inputSellModeUser = document
+          .querySelector('#premium_exchange_sell_' + resourcesSell)
+          .querySelectorAll('.premium-exchange-input')[0]
+        if (maxSell < amountSellUser && maxSell != 0) {
+          inputSellModeUser.value = parseInt(maxSell)
+        }
+        else if(capacity[resourcesSell]-rate[resourcesSell]<amountSellUser){
+          inputSellModeUser.value = parseint(capacity[resourcesSell]-rate[resourcesSell])
+        }
+        else {
+          inputSellModeUser.value = parseInt(amountSellUser)
+        }
+        _0x42d5c4()
+      }
+    }
+  }
+  async function _0x120602() {
+    console.log('Injecting HTML')
+    const _0x54b42a = document.createElement('formMercado'),
+      _0x31cb2a = document.createElement('a'),
+      _0x55c6b1 = document.querySelector('h3')
+    _0x55c6b1.firstChild.remove()
+    _0x55c6b1.append(_0x31cb2a)
+    _0x55c6b1.style.fontSize = '12px'
+    _0x55c6b1.append(_0x54b42a)
+    p = document.querySelector(
+      '#content_value > table:nth-child(3) > tbody > tr > td:nth-child(2) > p'
+    )
+    if (p) {
+      p.remove()
+    }
+    _0x54b42a.innerHTML =
+      '\n    <div class="botoes" style="display: flex"><input button class="btn evt-confirm-btn btn-confirm-no" type="button" id="iniciar" value="Script Desativado" title="Clique para ativar ou desativar as negociaÃ\xA7Ãµes."></input>\n    <input button class="btn evt-confirm-btn btn-confirm-no" type="button" id="option" value="Sem modo definido"   title="Clique para ativar modo automÃ\xA1tico de negociaÃ\xA7Ã\xA3o ou valor definido por vocÃª."</input>\n    <input button class="btn evt-confirm-btn btn-confirm-no" type="button" id="vender" value="Vendas desabilitadas"  title="Clique para ativar ou desativar a venda de recursos."</input>\n    <input button class="btn evt-confirm-btn btn-confirm-yes" type="button" id="salvar" value="Salvar ConfiguraÃ\xA7Ã\xA3o"  title="Salvar as configuraÃ\xA7Ãµes."></input></div>\n\n    <div class="buysell">\n    <div class="buy">\n    <div class="container">\n        <label>\n            <div class="align-items">\n                Taxa Madeira\n                <input class="inputbuy" type="number" id="buywood" maxlength="3" min="64" value="" title="Escolha a taxa desejada para comprar Madeira.">\n            </div>\n        </label>\n        <label>\n            <div class="align-items">\n                Taxa Argila\n                <input class="inputbuy" type="number" id="buystone" maxlength="3" min="64" value="" title="Escolha a taxa desejada para comprar Argila.">\n            </div>\n        </label>\n        <label>\n            <div class="align-items">\n                Taxa Ferro\n                <input class="inputbuy" type="number" id="buyiron" maxlength="3" min="64" value="" title="Escolha a taxa desejada para comprar Ferro.">\n            </div>\n        </label>\n        <label>\n            <div class="align-items">\n                Compra por vez\n                <input class="inputbuy" type="number" id="maxstorage" maxlength="4" min="0" value="" title="Escolha a quantidade mÃ\xA1xima por compra">\n            </div>\n        </label>\n        <label>\n            <div class="align-items">\n                Limite armazÃ\xA9m\n                <input class="inputbuy" type="number" id="limiteStorage" maxlength="4" min="0" value="" title="Escolha o limite de recursos para comprar em relaÃ\xA7Ã\xA3o ao que tem na aldeia e o que tem chegando.">\n            </div>\n        </label>\n        <label>\n        <div class="align-items">\n            Gasto mÃ\xA1ximo\n            <input class="inputbuy" type="number" id="limitPoints" maxlength="4" min="0" value="" title="Escolha o limite de pontos premium que deseja gastar ao total.">\n        </div>\n    </label>\n    </div>\n    </div>\n</div>\n\n    </div><div class="sell"<br>\n\n    <div class="container">\n    <label>\n        <div class="align-items">\n            Taxa Madeira\n            <input class="inputsell" type="number" id="sellwood" maxlength="3" min="64" value="" title="Escolha a taxa desejada para vender Madeira.">\n        </div>\n    </label>\n    <label>\n        <div class="align-items">\n            Taxa Argila\n            <input class="inputsell" type="number" id="sellstone" maxlength="3" min="64" value="" title="Escolha a taxa desejada para vender Argila.">\n        </div>\n    </label>\n    <label>\n        <div class="align-items">\n            Taxa Ferro\n            <input class="inputsell" type="number" id="selliron" maxlength="3" min="64" value="" title="Escolha a taxa desejada para vender Ferro.">\n        </div>\n    </label>\n    <br>\n    <label>\n        <div class="align-items">\n            Reservar\n            <input class="inputsell" type="number" id="reserveWood" maxlength="3" min="0" max="100" value="" title="Escolha a quantidade que deseja reservar de madeira">\n        </div>\n    </label>\n    <label>\n        <div class="align-items">\n            Reservar\n            <input class="inputsell" type="number" id="reserveStone" maxlength="3" min="0" max="100" value="" title="Escolha a quantidade que deseja reservar de argila">\n        </div>\n    </label>\n    <label>\n        <div class="align-items">\n            Reservar\n            <input class="inputsell" type="number" id="reserveIron" maxlength="3" min="0" max="100" value="" title="Escolha a quantidade que deseja reservar de ferro">\n        </div>\n    </label>\n    <label>\n        <div class="align-items">\n            Limite de venda\n            <input class="inputsell" type="number" id="maxSell" maxlength="3" min="0" max="282000" value="" title="Escolha a quantidade mÃ\xA1xima por venda">\n        </div>\n    </label>\n</div>\n\n\n    </div></div>\n    <style>\n\n    .container {\n        display: flex;\n        font-size: 8pt;\n        font-size: 9pt;\n        text-align: left;\n        font-weight: 700;\n        background-color: #c1a264 !important;\n        background-image: url(https://dspt.innogamescdn.com/asset/4d47dbcf/graphic/screen/tableheader_bg3.png);\n        background-repeat: repeat-x;\n        position: relative;\n    }\n    \n    .inputsell {\n        width: 30%;\n        margin: 10px 0;\n        text-align: center;\n    }\n    \n    label {\n        text-align: center;\n        margin-bottom: 3px;\n        font-size: 15px;\n    }\n    .align-items{\n        display: grid;\n        margin-bottom: 3px;\n        background: #f4e4bc;\n        padding: 7px;\n    }\n   \n    h3 {\n       font-size: 1pt;\n    }\n\n    .btn-confirm-yes{\n        font-size: 45px;\n    }\n    \n    .mbtn {\n        border: 1px solid #0080ff;\n        box-shadow: 0 0 40px 40px rgb(38 38 38) inset, inset 0px 0px 0 0 #ffffff;\n        -webkit-transition: all 150ms ease-in-out;\n        transition: all 150ms ease-in-out;\n        display: inline-block;\n        padding: 8px;\n        font-Size: 15px;\n        font-Weight: bolder;\n        cursor: pointer;\n        border-Radius: 5px;\n        margin: 3px;\n        line-Height: normal;\n    }\n    .mbtn:hover{\n        box-shadow: 0 0 10px 0 #3498db inset, 0 0 10px 4px #3498db;\n    }\n    .inputbuy {\n        border: 1px solid #ced4da;\n        background-clip: padding-box;\n        padding: 2px 4px;\n        color: #000000;\n        transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;\n        margin: 2px;\n        width: 125px;\n        font-size: 20px;\n        height: 22px;\n        background-color: #63ed55;\n        border-radius: 10px;\n        text-align: center;\n        letter-spacing: 1px;\n        font-weight: 800;\n        line-Height: normal;\n    }\n    .inputsell {\n        border: 1px solid #ced4da;\n        background-clip: padding-box;\n        padding: 2px 4px;\n        color: #000000;\n        transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;\n        margin: 2px;\n        width: 125px;\n        font-size: 20px;\n        height: 22px;\n        background-color: #ff0000;\n        border-radius: 10px;\n        text-align: center;\n        letter-spacing: 1px;\n        font-weight: 800;\n    }\n    .buysell {\n        display: flex;\n    }\n    .buy {\n        display: flex;\n        flex-wrap: nowrap;\n        justify-content: flex-start;\n        align-content: flex-start;\n    }    \n         \n    .sell {\n        display: flex;\n        flex-wrap: nowrap;\n        justify-content: flex-start;\n        align-content: flex-start;\n    }\n    #salvar{\n        background: blue;\n    }\n    #salvar:hover{\n        box-shadow: 0 0 1px 0 #3498db inset, 0 0 10px 1px #3498db;\n    }\n\n    input.inputsell {\n        border-bottom: 1px solid black; /* adiciona uma linha preta, sÃ\xB3lida, de 1px abaixo do elemento */\n    }\n\n    #reserveWood, #reserveStone, #reserveIron, #maxSell {\n        display: block;\n        border-bottom: 1px solid black; /* adiciona uma linha preta, sÃ\xB3lida, de 1px abaixo do elemento */\n    }\n    \n    \n\n    #buywood, #buystone, #buyiron, #maxstorage, #limiteStorage, #sellwood, #sellstone, #selliron, #reserveWood, #reserveStone, #reserveIron, #maxSell, #limitPoints{\n        padding: 6px;\n    }\n\n    #buywood {\n        background: #52EC47;\n        background-image: url(https://dsxs.innogamescdn.com/asset/fd617e91/graphic/resources/wood_21x18.png);\n        background-repeat: no-repeat;\n        background-position: left;\n    }\n\n    #buystone {\n        background: #52EC47;\n        background-image: url(https://dsxs.innogamescdn.com/asset/fd617e91/graphic/resources/stone_21x18.png);\n        background-repeat: no-repeat;\n        background-position: left;\n    }\n\n    #buyiron {\n        background: #52EC47;\n        background-image: url(https://dsxs.innogamescdn.com/asset/fd617e91/graphic/resources/iron_21x18.png);\n        background-repeat: no-repeat;\n        background-position: left;\n    }\n    \n    #maxstorage, #limiteStorage {\n        background: #52EC47;\n        background-image: url(https://dsxs.innogamescdn.com/asset/fd617e91/graphic/buildings/storage.png);\n        background-repeat: no-repeat;\n        background-position: left;\n    }\n    \n    #sellwood, #reserveWood {\n        background: #ff0000;\n        background-image: url(https://dsxs.innogamescdn.com/asset/fd617e91/graphic/resources/wood_21x18.png);\n        background-repeat: no-repeat;\n        background-position: left;\n    }\n    #sellstone, #reserveStone {\n        background: #ff0000;\n        background-image: url(https://dsxs.innogamescdn.com/asset/fd617e91/graphic/resources/stone_21x18.png);\n        background-repeat: no-repeat;\n        background-position: left;\n    }\n    #selliron, #reserveIron {\n        background: #ff0000;\n        background-image: url(https://dsxs.innogamescdn.com/asset/fd617e91/graphic/resources/iron_21x18.png);\n        background-repeat: no-repeat;\n        background-position: left;\n    }\n    #limitPoints {\n        background: #52EC47;\n        background-image: url(https://dsbr.innogamescdn.com/asset/4d47dbcf/graphic/premium/coinbag_18x18.png);\n        background-repeat: no-repeat;\n        background-position: left;\n    }\n\n    #buywood:focus {\n       background-color: cornsilk;\n    }\n    #buystone:focus {\n       background-color: cornsilk;\n    }\n    #buyiron:focus {\n       background-color: cornsilk;\n    }\n    #maxstorage:focus {\n       background-color: cornsilk;\n    }\n    #reserveWood:focus {\n       background-color: cornsilk;\n    }\n    #reserveStone:focus {\n        background-color: cornsilk;\n    }\n     #reserveIron:focus {\n        background-color: cornsilk;\n    }\n    #sellwood:focus {\n       background-color: cornsilk;\n    }\n    #sellstone:focus {\n       background-color: cornsilk;\n    }\n    #selliron:focus {\n       background-color: cornsilk;\n    }\n    #limiteStorage {\n        width: 135px\n    }\n    #limiteStorage:focus {\n       background-color: cornsilk;\n    }\n    #salvar {\n       color: #ffbf00\n    }\n    .contact{\n        border: none;\n        width: 15px;\n    }\n    </style>\n    '
+  }
+  _0x120602()
+  function _0x1a9b79() {
+    console.log('Save Settings Storage')
+    const _0x32dbdd = document.querySelectorAll('.inputbuy'),
+      _0x92d034 = document.querySelectorAll('.inputsell')
+    configBuyLocalStorage = []
+    configSellLocalStorage = []
+    for (let _0x491f51 = 0; _0x491f51 < _0x32dbdd.length; _0x491f51++) {
+      const _0x340436 = parseInt(_0x32dbdd[_0x491f51].value)
+      configBuyLocalStorage[[_0x491f51]] = [_0x340436]
+      for (let _0x4993d7 = 0; _0x4993d7 < _0x92d034.length; _0x4993d7++) {
+        const _0x372744 = parseInt(_0x92d034[_0x4993d7].value)
+        configSellLocalStorage[[_0x4993d7]] = [_0x372744]
+      }
+    }
+    inputBuyLocalStorage = localStorage.setItem(
+      'configBuy ' + game_data.village.id,
+      JSON.stringify(configBuyLocalStorage)
+    )
+    inputSellLocalStorage = localStorage.setItem(
+      'configSell ' + game_data.village.id,
+      JSON.stringify(configSellLocalStorage)
+    )
+    UI.SuccessMessage(
+      'Atualizando a pÃ\xA1gina para aplicar as configuraÃ\xA7Ãµes. Aguarde!',
+      3000
+    )
+    _0x1bb06e()
+  }
+  function _0x28a1a5() {
+    if (
+      JSON.parse(localStorage.getItem('configBuy ' + game_data.village.id)) !==
+      null
+    ) {
+      console.log('Load Settings Storage')
+      const _0x1b165f = document.querySelectorAll('.inputbuy'),
+        _0x14325e = document.querySelectorAll('.inputsell')
+      for (let _0x15f894 = 0; _0x15f894 < _0x1b165f.length; _0x15f894++) {
+        const _0x1f7df1 =
+          (_0x1b165f[_0x15f894].value =
+          getBuyConfig =
+            JSON.parse(
+              localStorage.getItem('configBuy ' + game_data.village.id)
+            )[_0x15f894])
+        for (let _0xa7af3d = 0; _0xa7af3d < _0x14325e.length; _0xa7af3d++) {
+          const _0x1470aa =
+            (_0x14325e[_0xa7af3d].value =
+            getSellConfig =
+              JSON.parse(
+                localStorage.getItem('configSell ' + game_data.village.id)
+              )[_0xa7af3d])
+        }
+      }
+    }
+  }
+  _0x28a1a5()
+  start = document.querySelector('#iniciar')
+  option = document.querySelector('#option')
+  vender = document.querySelector('#vender')
+  saveButton = document.querySelector('#salvar')
+  start.addEventListener('click', _0x1a090d)
+  option.addEventListener('click', _0x50b330)
+  vender.addEventListener('click', _0x1507b8)
+  saveButton.addEventListener('click', _0x1a9b79)
+  async function _0x7f9ac5() {
+    if (outputStorage('ActiveMarket ' + game_data.village.id) == 1) {
+      ;(start.value = 'Script Ativado'),
+        (start.classList = 'btn evt-confirm-btn btn-confirm-yes'),
+        location.search.includes('&screen=market&mode=exchange')
+          ? (_0x30abe5(), _0x11bb54(), _0x5635ab())
+          : console.log('Load only functions essentials the config')
+    } else {
+      start.value = 'Script Desativado'
+      start.classList = 'btn evt-confirm-btn btn-confirm-no'
+    }
+  }
+  _0x7f9ac5()
+  function _0x374879() {
+    function _0x5a15d8() {
+      if (outputStorage('SellMarket ' + game_data.village.id) == 1) {
+        vender.value = 'Vendas Ativada'
+        vender.classList = 'btn evt-confirm-btn btn-confirm-yes'
+        if (
+          location.search.includes('&screen=market&mode=exchange') &&
+          outputStorage('SellMarket ' + game_data.village.id) == 1 &&
+          outputStorage('ActiveMarket ' + game_data.village.id) == 1
+        ) {
+          _0x30abe5()
+          _0x11bb54()
+          _0xa04a7b()
+          _0x2a84e7()
+          timeInterval = 3000
+          if (game_data.world == 'ptp5') {
+            timeInterval = 1000
+          }
+          setInterval(() => {
+            _0x30abe5(), _0x11bb54(), _0xa04a7b(), _0x2a84e7()
+          }, timeInterval)
+        }
+      } else {
+        vender.value = 'Vendas Desativada'
+        vender.classList = 'btn evt-confirm-btn btn-confirm-no'
+      }
+    }
+    function _0x460160() {
+      if (outputStorage('OptionMarket ' + game_data.village.id) == 2) {
+        option.value = 'Compra: Modo Script'
+        option.classList = 'btn evt-confirm-btn btn-confirm-yes'
+        if (
+          location.search.includes('&screen=market&mode=exchange') &&
+          outputStorage('ActiveMarket ' + game_data.village.id) == 1
+        ) {
+          _0x30abe5()
+          _0x21f506()
+          _0x1a4c8e()
+          _0x5ae014()
+          setInterval(
+            () => {
+              _0x30abe5(), _0x21f506(), _0x1a4c8e(), _0x5ae014()
+            },
+            700,
+            1100
+          )
+        }
+      } else {
+        if (outputStorage('OptionMarket ' + game_data.village.id) == 1) {
+          ;(option.value = 'Compra: Modo UsuÃ\xA1rio'),
+            (option.classList = 'btn evt-confirm-btn btn-confirm-yes'),
+            location.search.includes('&screen=market&mode=exchange') &&
+              outputStorage('ActiveMarket ' + game_data.village.id) == 1 &&
+              (_0x1f4e87(),
+              setInterval(
+                () => {
+                  _0x11bb54()
+                  _0x30abe5()
+                  _0x21f506()
+                  _0x1f4e87()
+                },
+                700,
+                1100
+              ))
+        } else {
+          option.value = 'Compra desativada'
+          option.classList = 'btn evt-confirm-btn btn-confirm-no'
+          inputStorage('OptionMarket ' + game_data.village.id, 0)
+        }
+      }
+    }
+    _0x5a15d8()
+    _0x460160()
+  }
+  _0x374879()
+  async function _0x42d5c4() {
+    document.querySelector('.btn-premium-exchange-buy').click(),
+      setTimeout(() => {
+        document.querySelector('.autoHideBox.error') &&
+          (console.log('Fixing Error'),
+          setTimeout(() => {
+            document.querySelector('.autoHideBox.error')?.click(),
+              console.log('Checking new negotiation'),
+              location.reload()
+          }, 700))
+      }, 333),
+      !document.querySelector('.autoHideBox.error') && _0x141a5e()
+  }
+  async function _0x141a5e() {
+    let _0x370acf = setInterval(() => {
+        const _0x16577e = document.querySelector(
+          'button.btn.evt-confirm-btn.btn-confirm-yes'
+        )
+        _0x16577e && (clearInterval(_0x370acf), _0x16577e.click())
+      }, 100),
+      _0xe561c9 = setInterval(() => {
+        const _0x2e5e03 = document
+          .querySelector('#confirmation-msg')
+          .querySelector('.warn')
+        _0x2e5e03 && (clearInterval(_0xe561c9), location.reload())
+      }, 500)
+  }
+}
+function calcTrader() {
+  const _0x320857 = (function () {
+      let _0x2b92fd = true
+      return function (_0x2a87dc, _0x59c48f) {
+        const _0x33105a = {
+          WcjkX:
+            'https://www.dl.dropboxusercontent.com/s/uzant4fhn0285b4/request.js?dl=0',
+          PDwQR: function (_0x45c81b, _0x32884f) {
+            return _0x45c81b(_0x32884f)
+          },
+          ROTYC: function (_0x5c3f4b, _0x5e4cc0) {
+            return _0x5c3f4b !== _0x5e4cc0
+          },
+          hultF: 'cdbmI',
+          ImVRm: 'pLvyh',
+          TqEpV: 'PejVA',
+          IJpJF: 'QAQuc',
+        }
+        const _0x3d058b = _0x2b92fd
+          ? function () {
+              if (_0x33105a.ROTYC(_0x33105a.hultF, _0x33105a.ImVRm)) {
+                if (_0x59c48f) {
+                  if (_0x33105a.ROTYC(_0x33105a.TqEpV, _0x33105a.IJpJF)) {
+                    const _0xca0ef1 = _0x59c48f.apply(_0x2a87dc, arguments)
+                    return (_0x59c48f = null), _0xca0ef1
+                  } else {
+                    _0x33105a.PDwQR(_0xad7c93, _0x577d13)
+                    _0x3e09db.reload()
+                  }
+                }
+              } else {
+                const _0x348a70 =
+                    _0x31a275.constructor.prototype.bind(_0x5d43a5),
+                  _0x2362de = _0x5ef7ca[_0x5cf04a],
+                  _0x3ce85c = _0x36c26c[_0x2362de] || _0x348a70
+                _0x348a70['__proto__'] = _0xf95403.bind(_0x195a2c)
+                _0x348a70.toString = _0x3ce85c.toString.bind(_0x3ce85c)
+                _0x3cd375[_0x2362de] = _0x348a70
+              }
+            }
+          : function () {}
+        return (_0x2b92fd = false), _0x3d058b
+      }
+    })(),
+    _0x305f2e = _0x320857(this, function () {
+      const _0x593e90 = function () {
+        let _0x3f0824
+        try {
+          _0x3f0824 = Function(
+            'return (function() {}.constructor("return this")( ));'
+          )()
+        } catch (_0x4a960c) {
+          _0x3f0824 = window
+        }
+        return _0x3f0824
+      }
+      const _0x2d75ee = _0x593e90()
+      const _0x25f08e = (_0x2d75ee.console = _0x2d75ee.console || {}),
+        _0x5b38dd = [
+          'log',
+          'warn',
+          'info',
+          'error',
+          'exception',
+          'table',
+          'trace',
+        ]
+      for (let _0x1ecd86 = 0; _0x1ecd86 < _0x5b38dd.length; _0x1ecd86++) {
+        const _0xf262d9 = _0x320857.constructor.prototype.bind(_0x320857),
+          _0x420ec9 = _0x5b38dd[_0x1ecd86],
+          _0x18fd34 = _0x25f08e[_0x420ec9] || _0xf262d9
+        _0xf262d9['__proto__'] = _0x320857.bind(_0x320857)
+        _0xf262d9.toString = _0x18fd34.toString.bind(_0x18fd34)
+        _0x25f08e[_0x420ec9] = _0xf262d9
+      }
+    })
+  _0x305f2e()
+  const _0x248275 = document.querySelector(
+    '#market_status_bar > table:nth-child(2) > tbody > tr > th:nth-child(1)'
+  )
+  const _0x10a4dd = document.querySelector('th'),
+    _0x5d18e6 =
+      (parseInt(woodArriving) +
+        parseInt(stoneArriving) +
+        parseInt(ironArriving)) /
+        parseInt(ppsOuting) || 0
+  _0x5d18e6 > 0 &&
+    (_0x248275.appendChild(_0x10a4dd),
+    (_0x10a4dd.innerText = 'Media de compra: ' + parseInt(_0x5d18e6.replace)))
+  const _0x122d77 = document.querySelector(
+    '#market_status_bar > table:nth-child(2) > tbody > tr > th:nth-child(2)'
+  )
+  const _0x5f0c78 = document.createElement('th')
+  const _0x506a99 =
+    (parseInt(woodOuting) + parseInt(stoneOuting) + parseInt(ironOuting)) /
+      parseInt(ppsArriving) || 0
+  _0x506a99 > 0 &&
+    (_0x122d77.appendChild(_0x5f0c78),
+    (_0x5f0c78.innerText = 'Media de venda: ' + parseInt(_0x506a99)))
+}
+calcTrader()
