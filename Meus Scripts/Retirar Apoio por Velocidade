@@ -1,0 +1,222 @@
+// ==UserScript==
+// @name         Retirar Apoio por Velocidade (Loop v6.10)
+// @version      6.10
+// @description  Retira tropas automaticamente por velocidade até acabar. By BeNN 👑
+// @author       BeNN
+// @include      /^https:\/\/.*\/game\.php\?.*screen=info_village.*/
+// @grant        none
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    const unitSpeeds = {
+        spy: 9,
+        light: 10,
+        knight: 10,
+        heavy: 11,
+        spear: 18,
+        axe: 18,
+        sword: 22,
+        ram: 30,
+        catapult: 30,
+        snob: 35
+    };
+
+    const speedOrder = Object.entries(unitSpeeds)
+        .sort((a, b) => a[1] - b[1])
+        .map(([unit]) => unit);
+
+    const delayBetween = () => 1000 + Math.floor(Math.random() * 500);
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    function unidadesPresentes() {
+        const linhas = Array.from(document.querySelectorAll('tr[class^="village_row_"]'));
+        const unidades = new Set();
+        for (const linha of linhas) {
+            for (const unit of speedOrder) {
+                const cell = linha.querySelector(`.unit-item-${unit}`);
+                const qtd = cell && parseInt(cell.textContent.trim(), 10);
+                if (qtd > 0) unidades.add(unit);
+            }
+        }
+        return [...unidades];
+    }
+
+    async function limparCheckBoxesAldeias() {
+        const rows = Array.from(document.querySelectorAll('tr[class^="village_row_"]'));
+        for (const row of rows) {
+            const checkbox = row.querySelector('input.troop-request-selector');
+            if (checkbox && checkbox.checked) {
+                const evt = new MouseEvent("click", { bubbles: true, cancelable: true, view: window });
+                checkbox.dispatchEvent(evt);
+                await wait(50);
+            }
+        }
+        await wait(150);
+    }
+
+    async function limparCheckBoxesUnidades() {
+        const checkboxes = document.querySelectorAll('input.unit-selection[type="checkbox"]');
+        for (const cb of checkboxes) {
+            if (cb.checked) {
+                const evt = new MouseEvent("click", { bubbles: true, cancelable: true, view: window });
+                cb.dispatchEvent(evt);
+                await wait(50);
+            }
+        }
+        await wait(150);
+    }
+
+    async function marcarUnidade(unit) {
+        const cb = document.querySelector(`input.unit-selection[name="checkbox_${unit}"]`);
+        if (cb && !cb.checked) {
+            const evt = new MouseEvent("click", { bubbles: true, cancelable: true, view: window });
+            cb.dispatchEvent(evt);
+            await wait(delayBetween());
+        }
+    }
+
+    async function marcarAldeias(unit) {
+        const linhas = Array.from(document.querySelectorAll('tr[class^="village_row_"]'));
+        let count = 0;
+        for (const linha of linhas) {
+            const cell = linha.querySelector(`.unit-item-${unit}`);
+            const checkbox = linha.querySelector('input.troop-request-selector');
+            const qtd = cell && parseInt(cell.textContent.trim(), 10);
+            if (qtd > 0 && checkbox && !checkbox.checked) {
+                const evt = new MouseEvent("click", { bubbles: true, cancelable: true, view: window });
+                checkbox.dispatchEvent(evt);
+                count++;
+                await wait(100);
+            }
+        }
+        return count;
+    }
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    function setCookie(name, value) {
+        document.cookie = `${name}=${value}; path=/; expires=Fri, 31 Dec 9999 23:59:59 GMT`;
+    }
+
+    function delCookie(name) {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    }
+
+    async function submeterFormulario(unidade) {
+        await wait(delayBetween());
+        setCookie('retirarUnidadeAtual', unidade);
+        const btn = [...document.querySelectorAll('input[type="submit"]')].find(b => b.value === "Retirada");
+        if (btn) btn.click();
+    }
+
+    async function processarLoop(unidadeForcada = null, manual = false) {
+        await limparCheckBoxesAldeias();
+        await limparCheckBoxesUnidades();
+
+        const unidadesValidas = unidadesPresentes().filter(u => speedOrder.includes(u));
+        if (unidadesValidas.length === 0) {
+            delCookie('retirarUnidadeAtual');
+            if (manual) alert("✅ Todas as unidades foram retiradas.");
+            return;
+        }
+
+        const unidadeMaisRapida = unidadeForcada || speedOrder.find(u => unidadesValidas.includes(u));
+        if (!unidadeMaisRapida) return;
+
+        console.log(`⚙️ Retirando unidade: ${unidadeMaisRapida}`);
+        await marcarUnidade(unidadeMaisRapida);
+        const selecionadas = await marcarAldeias(unidadeMaisRapida);
+
+        if (selecionadas > 0) {
+            console.log(`✅ ${selecionadas} aldeias marcadas com ${unidadeMaisRapida}`);
+            await submeterFormulario(unidadeMaisRapida);
+        } else {
+            console.log(`⚠️ Nenhuma aldeia com ${unidadeMaisRapida}`);
+            delCookie('retirarUnidadeAtual');
+        }
+    }
+
+    function adicionarBotao() {
+        if (document.querySelector('#retirarVelocidadeBtn')) return;
+
+        const tituloDiv = [...document.querySelectorAll('div')].find(div => div.innerHTML.includes('<h3>Defesa</h3>'));
+        if (!tituloDiv) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'retirarVelocidadeBtn';
+        btn.textContent = 'Auto-Retirada por Velocidade';
+        btn.style = `
+            float: right;
+            background: #2980b9;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: -32px;
+            margin-right: 10px;
+        `;
+
+        tituloDiv.querySelector('h3')?.insertAdjacentElement('afterend', btn);
+        btn.addEventListener('click', () => {
+            setCookie('manualRetirada', 'true');
+            processarLoop(null, true);
+        });
+    }
+
+    function executarOuEsperar(selector, callback) {
+        if (document.querySelector(selector)) {
+            callback();
+            return;
+        }
+
+        const observer = new MutationObserver((mutations, obs) => {
+            if (document.querySelector(selector)) {
+                obs.disconnect();
+                callback();
+            }
+        });
+        observer.observe(document, { childList: true, subtree: true });
+    }
+
+    function initScript() {
+        console.log("🟢 Script carregado.");
+
+        setTimeout(() => {
+            console.log("🔘 Adicionando botão manual...");
+            adicionarBotao();
+        }, 500);
+
+        const unidadeGuardada = getCookie('retirarUnidadeAtual');
+        const manual = getCookie('manualRetirada');
+
+        if (unidadeGuardada && !manual) {
+            console.log("🟡 Unidade guardada no cookie:", unidadeGuardada);
+
+            executarOuEsperar('tr[class^="village_row_"]', () => {
+                console.log("✅ Elementos prontos. Reiniciando processo...");
+                processarLoop(unidadeGuardada);
+            });
+        } else {
+            if (!unidadeGuardada) {
+                console.warn("🚫 Nenhuma unidade guardada no cookie. Não há loop automático.");
+            }
+            if (manual) {
+                console.log("🛑 Execução manual detectada. Limpando estado manual...");
+                delCookie('manualRetirada');
+            }
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initScript);
+    } else {
+        initScript();
+    }
+})();
