@@ -1,0 +1,172 @@
+// ==UserScript==
+// @name         FAKES DINÂMICOS
+// @author       - BeNN
+// @include      https://ptc2*
+// @grant        none
+// ==/UserScript==
+
+// =================== CONFIGURAÇÕES ===================
+var tempo = 1500;
+var FakesPorAldeia = 2;
+var maxFakesAldeia = 1;
+var popupAviso = 1;
+
+// Enviar todas as tropas disponíveis (1 = sim, 0 = usar fakeDef/fakeAtk)
+var enviarTudo = 1;
+
+var coords = '518|564 519|560 507|565 516|556 526|562 476|610 474|614 515|610 509|614 514|614 479|610 478|612 509|570 520|560 516|563 509|565 512|566 509|567 506|569 512|559 510|559 498|573 502|581 498|574 496|575 499|575 502|558 522|567 497|568 504|554 506|550 500|554 506|549 515|561 523|566 516|565 507|549 499|558 504|550 500|553 513|555 502|557 505|549 509|556 512|554 509|551 503|556 503|550 504|556 511|554 501|573 500|577 519|557 519|554 518|555 519|553 518|551 511|551 517|551 513|552 519|552 513|549 503|547 506|547 510|547 501|546 514|549 501|548 500|550 517|549 515|547 500|551 515|548 513|544 509|543 512|546 512|545 513|545 510|540 512|541 510|545 507|544 509|544 506|544 511|547 508|547 507|545 513|538 507|546 508|546 525|583 524|586 527|587 526|585 527|576 534|586 536|580 513|596 535|600 534|597 512|561 527|578 526|580 525|596 531|576 507|561 508|596 507|599 525|586 528|578 503|571 503|562 514|618 538|601 526|578 538|550 526|546 539|549 539|548 538|548 537|546 538|547 539|547 539|550 535|549 535|551 535|550 537|544 537|545 538|544 537|549 542|529 549|524 525|588 550|513 534|589 531|598 513|539 551|526 503|551 504|549 537|610';
+
+// Tropas para Fake Defesa (Espadas ≥ 100)
+var fakeDef = {
+    spear: 0,
+    sword: 20,
+    axe: 0,
+    spy: 5,
+    light: 0,
+    heavy: 0,
+    ram: 0,
+    catapult: 10
+};
+
+// Tropas para Fake Ataque (Vikings ≥ 100)
+var fakeAtk = {
+    spear: 0,
+    sword: 0,
+    axe: 40,
+    spy: 1,
+    light: 10,
+    heavy: 0,
+    ram: 0,
+    catapult: 10
+};
+
+// =================== SCRIPT PRINCIPAL ===================
+(function () {
+    var doc = document;
+    var cookieName = "farmeruk";
+    var cookieNameTent = "tentcookie";
+    var Praca = false, EnviarAtaque = false;
+
+    var h2 = document.getElementsByTagName('h2');
+    for (var i = 0; i < h2.length; i++) {
+        if (h2[i].innerHTML.includes("Praça de Reuniões")) {
+            Praca = true;
+        } else if (h2[i].innerHTML.includes("Confirmar ataque a")) {
+            EnviarAtaque = true;
+        }
+    }
+
+    function altAldeia() {
+        $('.arrowRight').click();
+        $('.groupRight').click();
+        $('div.arrow.arrowRight').click();
+        $('div.arrow.groupRight').click();
+        if ($('.groupRight').length < 1 && $('.arrowRight').length < 1) window.location.reload();
+    }
+
+    function lerTropasDisponiveis() {
+        return {
+            spear: parseInt(document.querySelector('input[name="spear"]')?.getAttribute("data-all-count") || "0"),
+            sword: parseInt(document.querySelector('input[name="sword"]')?.getAttribute("data-all-count") || "0"),
+            axe: parseInt(document.querySelector('input[name="axe"]')?.getAttribute("data-all-count") || "0")
+        };
+    }
+
+    function definirTropas(index) {
+        let tropas = lerTropasDisponiveis();
+        if (tropas.sword >= 100) {
+            return fakeDef;
+        } else if (tropas.axe >= 100) {
+            return fakeAtk;
+        } else {
+            alert("Sem tropas suficientes nesta aldeia. A trocar para a próxima...");
+            document.cookie = "farmeruk=" + index + "-0;expires=Tue, 01 Jan 2050 00:00:00 GMT";
+            altAldeia();
+            throw '';
+        }
+    }
+
+    if (Praca) {
+        coords = coords.trim().split(" ");
+        var index = 0, fakesAldeia = 0;
+        var farmcookie = document.cookie.match('(^|;) ?farmeruk=([^;]*)(;|$)');
+        if (farmcookie) {
+            index = parseInt(farmcookie[2].split("-")[0]) || 0;
+            fakesAldeia = parseInt(farmcookie[2].split("-")[1]) || 0;
+        }
+
+        if (index >= coords.length) {
+            if (popupAviso == 1) {
+                alert("Chegaste à última coordenada. O script vai reiniciar.");
+            }
+            index = 0;
+            fakesAldeia = 0;
+            document.cookie = "farmeruk=0-0;expires=Tue, 01 Jan 2050 00:00:00 GMT";
+            window.location.reload();
+            throw '';
+        }
+
+        if (fakesAldeia >= maxFakesAldeia) {
+            document.cookie = "farmeruk=" + index + "-0;expires=Tue, 01 Jan 2050 00:00:00 GMT";
+            altAldeia();
+            return;
+        }
+
+        var coord = coords[index].split("|");
+
+        if (enviarTudo === 1) {
+            document.getElementById("selectAllUnits").click();
+        } else {
+            var tropasAUsar = definirTropas(index);
+            document.forms[0].spear.value = tropasAUsar.spear;
+            document.forms[0].sword.value = tropasAUsar.sword;
+            document.forms[0].axe.value = tropasAUsar.axe;
+            document.forms[0].spy.value = tropasAUsar.spy;
+            document.forms[0].light.value = tropasAUsar.light;
+            document.forms[0].heavy.value = tropasAUsar.heavy;
+            document.forms[0].ram.value = tropasAUsar.ram;
+            document.forms[0].catapult.value = tropasAUsar.catapult;
+        }
+
+        document.forms[0].x.value = coord[0];
+        document.forms[0].y.value = coord[1];
+
+        setTimeout(() => {
+            document.forms[0].attack.click();
+        }, tempo);
+    }
+
+    else if (EnviarAtaque) {
+        var found = false;
+        var BNCheck = document.getElementsByClassName("error");
+        for (var i = 0; i < BNCheck.length && !found; i++) {
+            if (BNCheck[i].innerHTML == "Bónus noturno ativo!") {
+                found = true;
+            }
+        }
+
+        if (found) {
+            let farmcookie = document.cookie.match('(^|;) ?farmeruk=([^;]*)(;|$)');
+            let index = 0;
+            if (farmcookie) {
+                index = parseInt(farmcookie[2].split("-")[0]) || 0;
+            }
+            document.cookie = "farmeruk=" + index + "-0;expires=Tue, 01 Jan 2050 00:00:00 GMT";
+            altAldeia();
+            return;
+        } else {
+            setTimeout(() => {
+                var farmcookie = document.cookie.match('(^|;) ?farmeruk=([^;]*)(;|$)');
+                var index = 0, fakesAldeia = 0;
+                if (farmcookie) {
+                    index = parseInt(farmcookie[2].split("-")[0]) || 0;
+                    fakesAldeia = parseInt(farmcookie[2].split("-")[1]) || 0;
+                }
+                index++;
+                fakesAldeia++;
+                document.cookie = "farmeruk=" + index + "-" + fakesAldeia + ";expires=Tue, 01 Jan 2050 00:00:00 GMT";
+                document.forms[0].troop_confirm_submit.click();
+            }, 500);
+        }
+    }
+})();
