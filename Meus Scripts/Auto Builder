@@ -1,0 +1,595 @@
+// ==UserScript==
+// @name         Auto Builder (PT)
+// @version      1.0
+// @description  Adiciona construções à fila automaticamente (TribalWars) | Melhorias por - BeNN (Discord: itzbenn)
+// @author       - BeNN
+// @match        https://*/game.php*screen=main*
+// @match        http://*/game.php*screen=main*
+// @grant        none
+// @namespace    https://greasyfork.org/users/151096
+// ==/UserScript==
+
+(function () {
+  "use strict";
+  if (window.__ABenn_v111) return;
+  window.__ABenn_v111 = true;
+
+  const BUILDING_LABELS = {
+    main: "Edificio Principal", barracks: "Quartel", stable: "Estábulo", garage: "Oficina",
+    watchtower: "Torre de Vigia", smith: "Ferreiro", snob: "Academia", market: "Mercado",
+    wood: "Bosque", stone: "Argila", iron: "Mina de Ferro", farm: "Fazenda",
+    storage: "Armazém", hide: "Esconderijo", wall: "Muralha"
+  };
+  const LABEL_TO_ID = Object.fromEntries(Object.entries(BUILDING_LABELS).map(([id, name]) => [name.toLowerCase(), id]));
+
+  let buildingObject, selection;
+  let scriptStatus = false, isBuilding = false, loopId = null, refreshId = null;
+  let refreshTickerId = null, refreshDeadline = 0;
+
+  // Pointer DnD (nosso)
+  let isDrag = false, dragUid = null, ghostEl = null, placeholderTr = null;
+  let dragRowHeight = 0, ghostStartTop = 0, pointerStartY = 0;
+
+  // Sync com fila nativa
+  const nativeSync = { attached: false, target: null, observer: null, nativeSorting: false };
+
+  const uid = () => `q_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+  class BQueue {
+    constructor(bQueue, bQueueLength, options = {}) {
+      this.buildingQueue = normalizeQueue(bQueue);
+      this.buildingQueueLength = bQueueLength;
+      this.options = { autoRefreshEnabled: options.autoRefreshEnabled ?? false, autoRefreshMinutes: options.autoRefreshMinutes ?? 0 };
+    }
+    addGroup(id, qty) {
+      qty = Math.max(1, parseInt(qty, 10) || 1);
+      const last = this.buildingQueue[this.buildingQueue.length - 1];
+      if (last && last.id === id) last.remaining += qty;
+      else this.buildingQueue.push({ uid: uid(), id, remaining: qty });
+    }
+    removeByUid(u) { const i = this.buildingQueue.findIndex(x => x.uid === u); if (i >= 0) this.buildingQueue.splice(i, 1); }
+    moveByUid(u, toIndex) {
+      const i = this.buildingQueue.findIndex(x => x.uid === u);
+      if (i < 0 || toIndex < 0 || toIndex > this.buildingQueue.length) return;
+      const [item] = this.buildingQueue.splice(i, 1);
+      this.buildingQueue.splice(toIndex, 0, item);
+    }
+  }
+  function normalizeQueue(arr) {
+    if (!Array.isArray(arr)) return [];
+    return arr.map(x => typeof x === "string" ? { uid: uid(), id: x, remaining: 1 } :
+      ({ uid: x.uid || uid(), id: x.id, remaining: x.remaining ?? 1 }));
+  }
+
+  // helpers
+  const formatLevel = (n) => (typeof n === "number" ? `Nv ${n}` : "Nv ?");
+  function getInGameQueuedCounts() {
+    const counts = {};
+    const q = document.getElementById("buildqueue");
+    if (!q) return counts;
+    const rows = Array.from(q.querySelectorAll("tr")).filter(r => !r.querySelector("th"));
+    for (const r of rows) {
+      let id = null;
+      const withData = r.querySelector("[data-building]");
+      if (withData) id = withData.getAttribute("data-building");
+      if (!id) {
+        const img = r.querySelector("img[alt],img[title]");
+        const label = (img?.getAttribute("alt") || img?.getAttribute("title") || "").trim().toLowerCase();
+        if (LABEL_TO_ID[label]) id = LABEL_TO_ID[label];
+      }
+      if (!id) {
+        const txt = (r.textContent || "").toLowerCase();
+        for (const [bid, name] of Object.entries(BUILDING_LABELS)) {
+          if (txt.includes(name.toLowerCase())) { id = bid; break; }
+        }
+      }
+      if (id) counts[id] = (counts[id] || 0) + 1;
+    }
+    return counts;
+  }
+  function getCurrentLevel(id) {
+    const gd = game_data?.village?.buildings;
+    if (gd && typeof gd[id] !== "undefined") {
+      const n = parseInt(gd[id], 10);
+      if (!Number.isNaN(n)) return n;
+    }
+    const row = document.getElementById(`main_buildrow_${id}`);
+    if (!row) return "?";
+    const txt = row.textContent || "";
+    const m = txt.match(/N[ií]vel\s*(\d+)/i) || txt.match(/(\d+)\)?\s*$/);
+    if (m && m[1]) {
+      const n = parseInt(m[1], 10);
+      if (!Number.isNaN(n)) return n;
+    }
+    const lvl = row.getAttribute("data-level");
+    if (lvl) {
+      const n = parseInt(lvl, 10);
+      if (!Number.isNaN(n)) return n;
+    }
+    return "?";
+  }
+
+  // boot
+  init();
+
+  function init() {
+    if (document.getElementById("autoBuilderTable")) return;
+    injectStyles();
+
+    const putEleBefore = document.getElementById("content_value");
+    if (!putEleBefore) return;
+    const newDiv = document.createElement("div");
+
+    const selectBuildingHtml = `
+      <td>
+        <select id="selectBuildingHtml">
+          ${Object.entries(BUILDING_LABELS).map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}
+        </select>
+      </td>`;
+
+    const newTable = `
+      <table id="autoBuilderTable" class="vis">
+        <tr>
+          <td><button id="startBuildingScript" class="btn">Start</button></td>
+          <td colspan="3"><span id="statusText" style="opacity:.9;margin-left:.5rem;"></span></td>
+        </tr>
+
+        <tr>
+          <td>Comprimento da fila:</td>
+          <td colspan="3">
+            <input id="queueLengthInput" style="width:50px" />
+            <button id="queueLengthBtn" class="btn" style="margin-left:.5rem">OK</button>
+            <span id="queueText" style="margin-left:.5rem"></span>
+          </td>
+        </tr>
+
+        <tr>
+          <td>Auto-refresh (min):</td>
+          <td colspan="3">
+            <input id="refreshMinutesInput" style="width:50px" />
+            <button id="refreshSetBtn" class="btn" style="margin-left:.5rem">Definir</button>
+            <button id="refreshToggleBtn" class="btn" style="margin-left:.5rem">Ligar</button>
+            <span id="refreshText" style="margin-left:.5rem; opacity:.9"></span>
+            <span id="refreshCountdown" style="margin-left:.5rem; opacity:.9"></span>
+          </td>
+        </tr>
+
+        <tr>
+          <td>Construção</td>
+          ${selectBuildingHtml}
+          <td colspan="2">
+            <input id="addQtyInput" type="number" min="1" value="1" style="width:60px; margin-right:.5rem" />
+            <button id="addBuilding" class="btn">Adicionar</button>
+          </td>
+        </tr>
+
+        <tr>
+          <th>Nome</th>
+          <th>Vai para</th>
+          <th>Ordem de construção</th>
+          <th style="width:160px">Ações</th>
+        </tr>
+        <tbody id="ab-body"></tbody>
+      </table>`;
+
+    newDiv.innerHTML = newTable;
+    putEleBefore.parentElement.parentElement.insertBefore(newDiv, putEleBefore.parentElement);
+
+    selection = document.getElementById("selectBuildingHtml");
+    const premiumLen = (game_data.features?.Premium?.active) ? 5 : 2;
+
+    // storage
+    if (localStorage.buildingObject) {
+      const parsed = JSON.parse(localStorage.buildingObject);
+      if (parsed[game_data.village.id]) {
+        const saved = parsed[game_data.village.id];
+        buildingObject = new BQueue(saved.buildingQueue || [], saved.buildingQueueLength ?? premiumLen, saved.options || {});
+      } else {
+        buildingObject = new BQueue([], premiumLen);
+        parsed[game_data.village.id] = buildingObject;
+        localStorage.buildingObject = JSON.stringify(parsed);
+      }
+    } else {
+      buildingObject = new BQueue([], premiumLen);
+      localStorage.buildingObject = JSON.stringify({ [game_data.village.id]: buildingObject });
+    }
+
+    document.getElementById("queueLengthInput").value = buildingObject.buildingQueueLength;
+    document.getElementById("refreshMinutesInput").value = buildingObject.options.autoRefreshMinutes || 0;
+    updateRefreshUI();
+    renderQueueTable();
+    eventListeners();
+    mimicNativeHandleStyle();
+    attachNativeQueueSync();
+
+    if (localStorage.scriptStatus) {
+      scriptStatus = JSON.parse(localStorage.scriptStatus);
+      setStatus(scriptStatus ? "Ativo" : "Parado");
+      if (scriptStatus) {
+        document.getElementById("startBuildingScript").innerText = "Stop";
+        startScript();
+      }
+    } else setStatus("Parado");
+
+    if (buildingObject.options.autoRefreshEnabled) startAutoRefresh();
+  }
+
+  function persist() {
+    const store = JSON.parse(localStorage.buildingObject || "{}");
+    store[game_data.village.id] = buildingObject;
+    localStorage.buildingObject = JSON.stringify(store);
+  }
+
+  function renderQueueTable() {
+    const body = document.getElementById("ab-body");
+    if (!body || isDrag || nativeSync.nativeSorting) return;
+
+    body.innerHTML = "";
+    removePlaceholder();
+
+    // soma inicial = o que já está na FILA do jogo
+    const accByBuilding = getInGameQueuedCounts();
+
+    for (const item of buildingObject.buildingQueue) {
+      const label = BUILDING_LABELS[item.id] || item.id;
+      const baseLevel = getCurrentLevel(item.id);
+      const beforeThis = accByBuilding[item.id] || 0;
+      const effectiveLevel = typeof baseLevel === "number" ? baseLevel + beforeThis : baseLevel;
+      const targetLevel = typeof effectiveLevel === "number" ? effectiveLevel + item.remaining : "?";
+      accByBuilding[item.id] = beforeThis + item.remaining;
+
+      const tr = document.createElement("tr");
+      tr.className = "ab-row";
+      tr.dataset.uid = item.uid;
+      tr.innerHTML = `
+        <td class="ab-name">
+          <span class="ab-handle ui-sortable-handle" title="Aqui pode alterar a ordem da fila de construção, arrastando-a com o rato para a posição pretendida."></span>
+          <span class="ab-label" title="Atual ${formatLevel(effectiveLevel)} → Após grupo: ${formatLevel(targetLevel)}">${label}</span>
+        </td>
+        <td class="ab-level">${formatLevel(targetLevel)}</td>
+        <td class="ab-order" data-uid="${item.uid}">
+          <span class="ab-order-text">${item.remaining}</span>
+        </td>
+        <td class="ab-actions">
+          <button class="btn ab-cancel" data-uid="${item.uid}" title="Remover">Cancelar</button>
+        </td>`;
+      body.appendChild(tr);
+    }
+
+    enablePointerDnD();
+  }
+
+  function setStatus(txt) {
+    const s = document.getElementById("statusText");
+    if (s) s.innerHTML = (txt === "Ativo")
+      ? `<b style="color:#1a7f37">Ativo</b>` : `<b style="color:#b42318">Parado</b>`;
+  }
+
+  function startScript() { if (!loopId) loopId = setInterval(tick, 1000); }
+  function stopScript() { if (loopId) { clearInterval(loopId); loopId = null; } isBuilding = false; }
+
+  function tick() {
+    const btn = document.querySelector(".btn-instant-free");
+    if (btn && btn.style.display !== "none") btn.click();
+
+    ensureNativeQueueSync();
+    renderQueueTable();
+
+    if (!buildingObject.buildingQueue.length) return;
+
+    const current = buildingObject.buildingQueue[0];
+    const building = current.id;
+
+    const wood = parseInt(document.getElementById("wood")?.textContent || "0", 10);
+    const stone = parseInt(document.getElementById("stone")?.textContent || "0", 10);
+    const iron = parseInt(document.getElementById("iron")?.textContent || "0", 10);
+
+    let woodCost = 9_999_999, stoneCost = 9_999_999, ironCost = 9_999_999;
+    try {
+      const rowSel = `#main_buildrow_${building}`;
+      woodCost = parseInt(document.querySelector(`${rowSel} > .cost_wood`)?.getAttribute("data-cost") || "9999999", 10);
+      stoneCost = parseInt(document.querySelector(`${rowSel} > .cost_stone`)?.getAttribute("data-cost") || "9999999", 10);
+      ironCost = parseInt(document.querySelector(`${rowSel} > .cost_iron`)?.getAttribute("data-cost") || "9999999", 10);
+    } catch (_) {}
+
+    let currentBuildLength = 0;
+    if (document.getElementById("buildqueue")) {
+      currentBuildLength = Math.max(0, document.getElementById("buildqueue").rows.length - 2);
+    }
+
+    if (currentBuildLength < buildingObject.buildingQueueLength && !isBuilding && scriptStatus &&
+        wood >= woodCost && stone >= stoneCost && iron >= ironCost) {
+      isBuilding = true;
+      setTimeout(() => buildBuilding(building), Math.floor(Math.random() * 500 + 1000));
+    }
+  }
+
+  function afterSuccessfulBuild() {
+    const first = buildingObject.buildingQueue[0];
+    if (!first) return;
+    if (first.remaining > 1) first.remaining -= 1; else buildingObject.buildingQueue.splice(0, 1);
+    persist();
+    renderQueueTable();
+    setTimeout(() => { window.location.reload(); }, Math.floor(Math.random() * 50 + 500));
+  }
+
+  function addBuildingGroup(id, qty) { buildingObject.addGroup(id, qty); persist(); renderQueueTable(); }
+
+  function buildBuilding(building) {
+    const data = { id: building, force: 1, destroy: 0, source: game_data.village.id, h: game_data.csrf };
+    const url = `/game.php?village=${game_data.village.id}&screen=main&ajaxaction=upgrade_building&type=main&`;
+    $.ajax({
+      url, type: "post", data,
+      headers: { Accept: "application/json, text/javascript, */*; q=0.01", "TribalWars-Ajax": 1 }
+    })
+      .done(function (r) {
+        let response; try { response = JSON.parse(r); } catch { response = r; }
+        if (response?.error) UI.ErrorMessage(response.error[0]);
+        else if (response?.response?.success) { UI.SuccessMessage(response.response.success); afterSuccessfulBuild(); }
+      })
+      .fail(function () { UI.ErrorMessage("Algo correu mal. Contacta: itzbenn"); })
+      .always(function () { isBuilding = false; });
+  }
+
+  function eventListeners() {
+    document.getElementById("queueLengthInput")
+      .addEventListener("keydown", (ev) => clickOnKeyPress(13, "#queueLengthBtn", ev));
+    document.getElementById("queueLengthBtn").addEventListener("click", function () {
+      let qLength = parseInt(document.getElementById("queueLengthInput").value, 10);
+      if (Number.isNaN(qLength) || qLength <= 0) qLength = 2;
+      if (!game_data.features?.Premium?.active && qLength > 2) {
+        buildingObject.buildingQueueLength = 2;
+        document.getElementById("queueText").innerHTML = " Premium inativo — fila limitada a 2.";
+      } else {
+        buildingObject.buildingQueueLength = qLength;
+        document.getElementById("queueText").innerHTML = qLength > 5 ? ` Fila: ${qLength}. (>5 tem custos adicionais)` : ` Fila: ${qLength}`;
+      }
+      document.getElementById("queueLengthInput").value = buildingObject.buildingQueueLength;
+      persist();
+    });
+
+    document.getElementById("addBuilding").addEventListener("click", function () {
+      const id = selection.value;
+      let qty = parseInt(document.getElementById("addQtyInput").value, 10);
+      if (Number.isNaN(qty) || qty < 1) qty = 1;
+      addBuildingGroup(id, qty);
+    });
+
+    const body = document.getElementById("ab-body");
+
+    body.addEventListener("click", (ev) => {
+      const btn = ev.target.closest(".ab-cancel");
+      if (!btn) return;
+      const u = btn.getAttribute("data-uid");
+      buildingObject.removeByUid(u);
+      persist();
+      renderQueueTable();
+    });
+
+    document.getElementById("startBuildingScript").addEventListener("click", function () {
+      const btn = document.getElementById("startBuildingScript");
+      if (btn.innerText === "Start") {
+        btn.innerText = "Stop";
+        scriptStatus = true;
+        localStorage.scriptStatus = JSON.stringify(scriptStatus);
+        setStatus("Ativo");
+        startScript();
+      } else {
+        btn.innerText = "Start";
+        scriptStatus = false;
+        localStorage.scriptStatus = JSON.stringify(scriptStatus);
+        setStatus("Parado");
+        stopScript();
+      }
+    });
+
+    document.getElementById("refreshSetBtn").addEventListener("click", function () {
+      let mins = parseFloat(document.getElementById("refreshMinutesInput").value);
+      if (Number.isNaN(mins) || mins < 0) mins = 0;
+      buildingObject.options.autoRefreshMinutes = mins;
+      persist(); updateRefreshUI();
+      if (buildingObject.options.autoRefreshEnabled) { stopAutoRefresh(); startAutoRefresh(); }
+    });
+    document.getElementById("refreshToggleBtn").addEventListener("click", function () {
+      buildingObject.options.autoRefreshEnabled = !buildingObject.options.autoRefreshEnabled;
+      persist(); updateRefreshUI();
+      if (buildingObject.options.autoRefreshEnabled) startAutoRefresh(); else stopAutoRefresh();
+    });
+  }
+
+  // ---------- Sync com a fila nativa ----------
+  function attachNativeQueueSync() {
+    const q = document.getElementById("buildqueue");
+    if (!q) { setTimeout(attachNativeQueueSync, 800); return; }
+
+    nativeSync.target = q;
+    nativeSync.attached = true;
+
+    try {
+      const $ = window.jQuery;
+      if ($ && $(q).on) {
+        $(q).on("sortstart", () => { nativeSync.nativeSorting = true; });
+        $(q).on("sortstop update sortupdate", () => {
+          nativeSync.nativeSorting = false;
+          setTimeout(renderQueueTable, 0);
+        });
+        $(document).ajaxComplete((_, __, opts) => {
+          if (opts && /ajaxaction=(buildorder_reorder|cancel_order)/.test(opts.url || "")) {
+            setTimeout(renderQueueTable, 0);
+          }
+        });
+      }
+    } catch (e) {}
+
+    try {
+      nativeSync.observer = new MutationObserver(() => {
+        if (!nativeSync.nativeSorting && !isDrag) renderQueueTable();
+      });
+      nativeSync.observer.observe(q, { childList: true, subtree: true });
+    } catch (e) {}
+  }
+  function ensureNativeQueueSync() {
+    if (!nativeSync.attached) return attachNativeQueueSync();
+    if (!nativeSync.target || !document.body.contains(nativeSync.target)) {
+      try { nativeSync.observer?.disconnect(); } catch (_) {}
+      nativeSync.attached = false; nativeSync.target = null; nativeSync.observer = null;
+      attachNativeQueueSync();
+    }
+  }
+  // -------------------------------------------
+
+  // ---------- Pointer DnD (nosso) ----------
+  function enablePointerDnD() {
+    const body = document.getElementById("ab-body");
+    if (!body) return;
+
+    body.querySelectorAll(".ab-handle").forEach(handle => {
+      handle.onpointerdown = (ev) => {
+        const row = ev.target.closest("tr.ab-row");
+        if (!row) return;
+        ev.preventDefault(); ev.stopPropagation();
+        isDrag = true; document.body.classList.add("ab-noselect");
+        row.classList.add("ab-source"); dragUid = row.dataset.uid;
+
+        const rect = row.getBoundingClientRect();
+        dragRowHeight = rect.height; ghostStartTop = rect.top + window.scrollY; pointerStartY = ev.pageY;
+
+        ghostEl = row.cloneNode(true);
+        ghostEl.classList.add("ab-ghost", "ui-sortable-helper");
+        ghostEl.style.width = `${rect.width}px`;
+        ghostEl.style.left = `${rect.left + window.scrollX}px`;
+        ghostEl.style.top = `${ghostStartTop}px`;
+        document.body.appendChild(ghostEl);
+
+        removePlaceholder();
+        placeholderTr = document.createElement("tr");
+        placeholderTr.className = "ab-placeholder ui-state-highlight";
+        placeholderTr.innerHTML = `<td colspan="4"></td>`;
+        placeholderTr.style.height = `${dragRowHeight}px`;
+        row.after(placeholderTr);
+        row.style.visibility = "hidden";
+
+        ev.target.setPointerCapture?.(ev.pointerId);
+        window.addEventListener("pointermove", onPointerMove, { passive: false });
+        window.addEventListener("pointerup", onPointerUp, { passive: false });
+      };
+    });
+  }
+  function onPointerMove(ev) {
+    if (!isDrag || !ghostEl) return;
+    ev.preventDefault();
+    const dy = ev.pageY - pointerStartY;
+    ghostEl.style.top = `${ghostStartTop + dy}px`;
+
+    const body = document.getElementById("ab-body");
+    const rows = Array.from(body.querySelectorAll("tr.ab-row")).filter(r => r.style.visibility !== "hidden");
+    const centerY = parseFloat(ghostEl.style.top) + dragRowHeight / 2;
+    let beforeRow = null;
+    rows.forEach(r => r.classList.remove("ab-target"));
+    for (const r of rows) {
+      const rect = r.getBoundingClientRect();
+      const mid = rect.top + window.scrollY + rect.height / 2;
+      if (centerY < mid) { beforeRow = r; break; }
+    }
+    if (beforeRow) { beforeRow.classList.add("ab-target"); body.insertBefore(placeholderTr, beforeRow); }
+    else body.appendChild(placeholderTr);
+  }
+  function onPointerUp(ev) {
+    if (!isDrag) return;
+    ev.preventDefault();
+    const body = document.getElementById("ab-body");
+    const toIndex = Array.from(body.children).indexOf(placeholderTr);
+    buildingObject.moveByUid(dragUid, toIndex);
+    persist();
+    const hidden = body.querySelector('tr.ab-row.ab-source');
+    if (hidden) { hidden.style.visibility = ""; hidden.classList.remove("ab-source"); }
+    if (ghostEl && ghostEl.parentNode) ghostEl.parentNode.removeChild(ghostEl);
+    ghostEl = null; removePlaceholder();
+    body.querySelectorAll(".ab-target").forEach(r => r.classList.remove("ab-target"));
+    document.body.classList.remove("ab-noselect");
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    isDrag = false; dragUid = null;
+    renderQueueTable();
+  }
+  // -----------------------------------------
+
+  function removePlaceholder() { if (placeholderTr && placeholderTr.parentNode) placeholderTr.parentNode.removeChild(placeholderTr); placeholderTr = null; }
+
+  // Estilo do handle igual ao do jogo
+  function mimicNativeHandleStyle() {
+    const native = document.querySelector(".bqhandle");
+    const fallbackHandle = "url(https://dspt.innogamescdn.com/asset/41873447/graphic/sorthandle.webp)";
+    const style = document.createElement("style");
+    if (native) {
+      const cs = getComputedStyle(native);
+      const bg = cs.backgroundImage || fallbackHandle;
+      const w = cs.width || "11px", h = cs.height || "11px";
+      const repeat = cs.backgroundRepeat || "no-repeat";
+      style.textContent = `.ab-handle{background-image:${bg}!important;background-repeat:${repeat}!important;width:${w}!important;height:${h}!important;display:inline-block;cursor:pointer;user-select:none}`;
+    } else {
+      style.textContent = `.ab-handle{background-image:${fallbackHandle};background-repeat:no-repeat;width:11px;height:11px;display:inline-block;cursor:pointer;user-select:none}`;
+    }
+    document.head.appendChild(style);
+  }
+
+  // Auto-refresh + countdown
+  function updateRefreshUI() {
+    const mins = buildingObject.options.autoRefreshMinutes || 0;
+    const enabled = !!buildingObject.options.autoRefreshEnabled;
+    const txt = document.getElementById("refreshText");
+    const toggleBtn = document.getElementById("refreshToggleBtn");
+    if (toggleBtn) toggleBtn.textContent = enabled ? "Desligar" : "Ligar";
+    if (txt) {
+      if (!mins || mins <= 0) txt.textContent = " (definir minutos > 0 para ativar)";
+      else txt.textContent = enabled ? ` Ativo: a refrescar a cada ${mins} min` : ` Inativo (min: ${mins})`;
+    }
+  }
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    const mins = buildingObject.options.autoRefreshMinutes || 0;
+    if (!mins || mins <= 0) return;
+    refreshDeadline = Date.now() + mins * 60 * 1000;
+    refreshId = setInterval(() => window.location.reload(), mins * 60 * 1000);
+    refreshTickerId = setInterval(updateCountdown, 1000);
+    updateCountdown(); updateRefreshUI();
+  }
+  function stopAutoRefresh() {
+    if (refreshId) { clearInterval(refreshId); refreshId = null; }
+    if (refreshTickerId) { clearInterval(refreshTickerId); refreshTickerId = null; }
+    refreshDeadline = 0;
+    const c = document.getElementById("refreshCountdown"); if (c) c.textContent = "";
+    updateRefreshUI();
+  }
+  function updateCountdown() {
+    const c = document.getElementById("refreshCountdown");
+    if (!c || !refreshDeadline) return;
+    const ms = refreshDeadline - Date.now();
+    if (ms <= 0) { c.textContent = " (a refrescar…)"; return; }
+    const total = Math.round(ms / 1000);
+    const mm = Math.floor(total / 60);
+    const ss = String(total % 60).padStart(2, "0");
+    c.textContent = ` — próximo em ${mm}:${ss}`;
+  }
+
+  // util
+  function clickOnKeyPress(keyCode, selector, ev) {
+    if (ev?.defaultPrevented) return;
+    if (ev?.keyCode === keyCode) { const el = document.querySelector(selector); if (el) el.click(); ev.preventDefault(); }
+  }
+
+  function injectStyles() {
+    const css = `
+      #autoBuilderTable .ab-name { display:flex; align-items:center; gap:.5rem; }
+      #autoBuilderTable .ab-actions { white-space:nowrap; }
+      #autoBuilderTable .ab-level, #autoBuilderTable .ab-order { font-weight:600; }
+      .ab-ghost { position:absolute; z-index:9999; pointer-events:none; background:#fff; border:1px solid #c8d6e5; box-shadow:0 6px 18px rgba(0,0,0,.15); opacity:.95; }
+      .ab-placeholder td { padding:0; background:#fcf9e8; border:2px dashed #92c200; }
+      .ab-row.ab-target { background:#f1ffe6; transition: background-color .08s ease; }
+      .ab-noselect { -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none; }
+    `;
+    const style = document.createElement("style");
+    style.id = "ab-styles"; style.textContent = css; document.head.appendChild(style);
+  }
+
+})();
